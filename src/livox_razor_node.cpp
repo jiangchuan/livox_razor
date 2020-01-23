@@ -20,7 +20,7 @@
 #define SAVE_SIZE 10000
 #define LED_JUMP 10
 
-sensor_msgs::Imu::ConstPtr pose_msg;
+sensor_msgs::Imu::ConstPtr imu_msg;
 sensor_msgs::NavSatFix::ConstPtr gps_msg;
 sensor_msgs::PointCloud2::ConstPtr livox_msg;
 
@@ -85,7 +85,7 @@ std::string get_time_str()
 
 void compute_local_xyz(double lidarx, double lidary, double lidarz)
 {
-    tf2::Quaternion qtn = tf2::Quaternion(pose_msg->orientation.x, pose_msg->orientation.y, pose_msg->orientation.z, pose_msg->orientation.w);
+    tf2::Quaternion qtn = tf2::Quaternion(imu_msg->orientation.x, imu_msg->orientation.y, imu_msg->orientation.z, imu_msg->orientation.w);
     // qtn.normalize();
     // tf2::Quaternion qtn_local = qtn * tf2::Quaternion(lidarx, lidary, lidarz, 0.0) * qtn.inverse().normalize();
     tf2::Quaternion qtn_local = qtn * tf2::Quaternion(lidarx, lidary, lidarz, 0.0) * qtn.inverse();
@@ -94,9 +94,9 @@ void compute_local_xyz(double lidarx, double lidary, double lidarz)
     localz = qtn_local.getZ();
 }
 
-void local_pos_callback(const sensor_msgs::Imu::ConstPtr &msg)
+void imu_callback(const sensor_msgs::Imu::ConstPtr &msg)
 {
-    pose_msg = msg;
+    imu_msg = msg;
 }
 
 void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg)
@@ -212,13 +212,12 @@ int main(int argc, char **argv)
 
     ros::init(argc, argv, "livox_razor");
     ros::NodeHandle nh;
-
-    ros::Subscriber local_pos_sub = nh.subscribe<sensor_msgs::Imu>("imu", 10, local_pos_callback); // Razor IMU
+    ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("imu", 10, imu_callback); // Razor IMU
     ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>("qxgps", 10, gps_callback);     // QX GPS
     ros::Subscriber livox_sub = nh.subscribe<sensor_msgs::PointCloud2>("livox/lidar", 10, livox_callback);
-
     ros::Rate rate((double)ROS_RATE); //the setpoint publishing rate MUST be faster than 2Hz
-    while (ros::ok() && !pose_msg)
+    
+    while (ros::ok() && !imu_msg)
     {
         ros::spinOnce();
         rate.sleep();
