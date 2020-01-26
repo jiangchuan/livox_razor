@@ -26,13 +26,35 @@ double to_degrees(double r)
     return r * 180.0 / M_PI;
 }
 
+
+void computeEulerAngles(float dqx, float dqy, float dqz, float dqw)
+{
+    float ysqr = dqy * dqy;
+    float t0 = -2.0f * (ysqr + dqz * dqz) + 1.0f;
+    float t1 = +2.0f * (dqx * dqy - dqw * dqz);
+    float t2 = -2.0f * (dqx * dqz + dqw * dqy);
+    float t3 = +2.0f * (dqy * dqz - dqw * dqx);
+    float t4 = -2.0f * (dqx * dqx + ysqr) + 1.0f;
+  
+	// Keep t2 within range of asin (-1, 1)
+    t2 = t2 > 1.0f ? 1.0f : t2;
+    t2 = t2 < -1.0f ? -1.0f : t2;
+  
+    pitch = asin(t2) * 2;
+    roll = atan2(t3, t4);
+    yaw = atan2(t1, t0);
+}
+
+
 void imu_callback(const sensor_msgs::Imu::ConstPtr &msg)
 {
     // ROS_INFO("orientation: x=%f, y=%f, z=%f, w=%f", msg->orientation.x, msg->orientation.y, msg->orientation.z, msg->orientation.w);
-    tf2::Quaternion qtn = tf2::Quaternion(msg->orientation.x, msg->orientation.y, msg->orientation.z, msg->orientation.w);
-    qtn.normalize();
-    tf2::Matrix3x3 m(qtn);
-    m.getRPY(roll, pitch, yaw);
+    // tf2::Quaternion qtn = tf2::Quaternion(msg->orientation.x, msg->orientation.y, msg->orientation.z, msg->orientation.w);
+    // qtn.normalize();
+    // tf2::Matrix3x3 m(qtn);
+    // m.getRPY(roll, pitch, yaw);
+
+    computeEulerAngles(msg->orientation.x, msg->orientation.y, msg->orientation.z, msg->orientation.w);
     ROS_INFO("Razor roll = %1.1f degrees, pitch = %1.1f degrees, yaw = %1.1f degrees\n", to_degrees(roll), to_degrees(pitch), to_degrees(yaw));
 }
 
@@ -44,6 +66,21 @@ void local_pos_callback(const geometry_msgs::PoseStamped::ConstPtr &msg)
     tf2::Matrix3x3 m(qtn);
     m.getRPY(roll, pitch, yaw);
     ROS_INFO("      Mavros roll = %1.1f degrees, pitch = %1.1f degrees, yaw = %1.1f degrees\n", to_degrees(roll), to_degrees(pitch), to_degrees(yaw));
+    // Roll: -180 - 180, to right is positive
+    // Pitch: 0 -- -90, to up is positive, synmetric to z axis
+    // Yaw: To North is 0, 0 -- 180, 0 -- -180 to west. 
+
+    //Calibration: 
+    // xmin = -261.72, turn up 
+    // xmax = 267.46, turn down
+    // ymin = -283.94, turn left
+    // ymax = 276.73, turn right
+    // zmin = -283.69, facing down
+    // zmax = 294.07, facing up
+
+    // gyro x avg = -0.02
+    // gyro y avg = -0.00
+    // gyro z avg = -0.01
 }
 
 int main(int argc, char **argv)
