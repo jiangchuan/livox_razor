@@ -48,24 +48,36 @@ void computeEulerAngles(float dqx, float dqy, float dqz, float dqw)
 
 void imu_callback(const sensor_msgs::Imu::ConstPtr &msg)
 {
-    // ROS_INFO("orientation: x=%f, y=%f, z=%f, w=%f", msg->orientation.x, msg->orientation.y, msg->orientation.z, msg->orientation.w);
+    //ROS_INFO("orientation: x=%f, y=%f, z=%f, w=%f", msg->orientation.x, msg->orientation.y, msg->orientation.z, msg->orientation.w);
+
+    tf2::Quaternion qtn = tf2::Quaternion(imu_msg->orientation.x, imu_msg->orientation.y, imu_msg->orientation.z, imu_msg->orientation.w);
+    // qtn.normalize();
+    // tf2::Quaternion qtn_local = qtn * tf2::Quaternion(lidarx, lidary, lidarz, 0.0) * qtn.inverse().normalize();
+    tf2::Quaternion qtn_local = qtn * tf2::Quaternion(1, 2, 3, 0.0) * qtn.inverse();
+    double localx = qtn_local.getX();
+    double localy = qtn_local.getY();
+    double localz = qtn_local.getZ();
+    double localw = qtn_local.getW();
+    ROS_INFO("After rotation: x=%f, y=%f, z=%f, w=%f", localx, localy, localz, localw);
+
+
     // tf2::Quaternion qtn = tf2::Quaternion(msg->orientation.x, msg->orientation.y, msg->orientation.z, msg->orientation.w);
     // qtn.normalize();
     // tf2::Matrix3x3 m(qtn);
     // m.getRPY(roll, pitch, yaw);
 
     computeEulerAngles(msg->orientation.x, msg->orientation.y, msg->orientation.z, msg->orientation.w);
-    ROS_INFO("Razor roll = %1.1f degrees, pitch = %1.1f degrees, yaw = %1.1f degrees\n", to_degrees(roll), to_degrees(pitch), to_degrees(yaw));
+    //ROS_INFO("Razor roll = %1.1f degrees, pitch = %1.1f degrees, yaw = %1.1f degrees\n", to_degrees(roll), to_degrees(pitch), to_degrees(yaw));
 }
 
 void local_pos_callback(const geometry_msgs::PoseStamped::ConstPtr &msg)
 {
-    // ROS_INFO("orientation: x=%f, y=%f, z=%f, w=%f", msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z, msg->pose.orientation.w);
+    ROS_INFO("orientation: x=%f, y=%f, z=%f, w=%f", msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z, msg->pose.orientation.w);
     tf2::Quaternion qtn = tf2::Quaternion(msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z, msg->pose.orientation.w);
     qtn.normalize();
     tf2::Matrix3x3 m(qtn);
     m.getRPY(roll, pitch, yaw);
-    ROS_INFO("      Mavros roll = %1.1f degrees, pitch = %1.1f degrees, yaw = %1.1f degrees\n", to_degrees(roll), to_degrees(pitch), to_degrees(yaw));
+    //ROS_INFO("      Mavros roll = %1.1f degrees, pitch = %1.1f degrees, yaw = %1.1f degrees\n", to_degrees(roll), to_degrees(pitch), to_degrees(yaw));
     // Roll: -180 - 180, to right is positive
     // Pitch: 0 -- -90, to up is positive, synmetric to z axis
     // Yaw: To North is 0, 0 -- 180, 0 -- -180 to west. 
@@ -88,7 +100,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "livox_razor");
     ros::NodeHandle nh;
     ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("imu", 10, imu_callback); // Razor IMU
-    ros::Subscriber local_pos_sub = nh.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, local_pos_callback); // Mavros IMU
+    //ros::Subscriber local_pos_sub = nh.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, local_pos_callback); // Mavros IMU
     ros::spin();
     return 0;
 }
