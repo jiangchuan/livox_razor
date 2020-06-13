@@ -14,7 +14,14 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Transform.h>
 
-#include <wiringPi.h>
+// #include <wiringPi.h>
+
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #define ROS_RATE 20
 #define SAVE_SIZE 10000
@@ -37,6 +44,8 @@ time_t last_write_time = 0;
 
 bool use_pi = true;
 // bool use_pi = false;
+
+int fd;
 
 time_t get_time()
 {
@@ -186,13 +195,24 @@ void set_led()
         if (difftime(now, last_write_time) < 1)
         {
             led_value = 1;
-            digitalWrite(0, led_value);
+            // digitalWrite(0, led_value);
+
+            if (write(fd, "1", 1) != 1)
+            {
+                perror("Error writing to /sys/class/gpio/gpio24/value");
+                exit(1);
+            }
         }
     }
     else
     {
         led_value = 0;
-        digitalWrite(0, led_value);
+        // digitalWrite(0, led_value);
+        if (write(fd, "0", 1) != 1)
+        {
+            perror("Error writing to /sys/class/gpio/gpio24/value");
+            exit(1);
+        }
     }
 }
 
@@ -200,8 +220,52 @@ int main(int argc, char **argv)
 {
     if (use_pi)
     {
-        wiringPiSetup();
-        pinMode(0, OUTPUT);
+        // wiringPiSetup();
+        // pinMode(0, OUTPUT);
+
+        ////////////////////
+        // Export the desired pin by writing to /sys/class/gpio/export
+
+        fd = open("/sys/class/gpio/export", O_WRONLY);
+        if (fd == -1)
+        {
+            perror("Unable to open /sys/class/gpio/export");
+            exit(1);
+        }
+
+        if (write(fd, "24", 2) != 2)
+        {
+            perror("Error writing to /sys/class/gpio/export");
+            exit(1);
+        }
+
+        close(fd);
+
+        // Set the pin to be an output by writing "out" to /sys/class/gpio/gpio24/direction
+
+        fd = open("/sys/class/gpio/gpio24/direction", O_WRONLY);
+        if (fd == -1)
+        {
+            perror("Unable to open /sys/class/gpio/gpio24/direction");
+            exit(1);
+        }
+
+        if (write(fd, "out", 3) != 3)
+        {
+            perror("Error writing to /sys/class/gpio/gpio24/direction");
+            exit(1);
+        }
+
+        close(fd);
+
+        fd = open("/sys/class/gpio/gpio24/value", O_WRONLY);
+        if (fd == -1)
+        {
+            perror("Unable to open /sys/class/gpio/gpio24/value");
+            exit(1);
+        }
+        ////////////////////
+
         rootdir = "/home/pi/livox_data/";
     }
     else
@@ -212,11 +276,11 @@ int main(int argc, char **argv)
 
     ros::init(argc, argv, "livox_razor");
     ros::NodeHandle nh;
-    ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("imu", 10, imu_callback); // Razor IMU
-    ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>("qxgps", 10, gps_callback);     // QX GPS
+    ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("imu", 10, imu_callback);         // Razor IMU
+    ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>("qxgps", 10, gps_callback); // QX GPS
     ros::Subscriber livox_sub = nh.subscribe<sensor_msgs::PointCloud2>("livox/lidar", 10, livox_callback);
     ros::Rate rate((double)ROS_RATE); //the setpoint publishing rate MUST be faster than 2Hz
-    
+
     while (ros::ok() && !imu_msg)
     {
         ros::spinOnce();
@@ -253,5 +317,23 @@ int main(int argc, char **argv)
         rate.sleep();
     }
 
+    close(fd);
+
+    // Unexport the pin by writing to /sys/class/gpio/unexport
+
+    fd = open("/sys/class/gpio/unexport", O_WRONLY);
+    if (fd == -1)
+    {
+        perror("Unable to open /sys/class/gpio/unexport");
+        exit(1);
+    }
+
+    if (write(fd, "24", 2) != 2)
+    {
+        perror("Error writing to /sys/class/gpio/unexport");
+        exit(1);
+    }
+
+    close(fd);
     return 0;
 }
