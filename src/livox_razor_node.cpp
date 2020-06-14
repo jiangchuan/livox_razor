@@ -194,14 +194,12 @@ void set_led()
         if (difftime(now, last_write_time) < 1)
         {
             led_value = 1;
-            // digitalWrite(0, led_value);
             gpioWrite(24, 1); /* on */
         }
     }
     else
     {
         led_value = 0;
-        // digitalWrite(0, led_value);
         gpioWrite(24, 0); /* off */
     }
 }
@@ -231,7 +229,7 @@ int main(int argc, char **argv)
     ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("imu", 10, imu_callback);         // Razor IMU
     ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>("qxgps", 10, gps_callback); // QX GPS
     ros::Subscriber livox_sub = nh.subscribe<sensor_msgs::PointCloud2>("livox/lidar", 10, livox_callback);
-    ros::Rate rate((double)ROS_RATE); //the setpoint publishing rate MUST be faster than 2Hz
+    ros::Rate rate((double)ROS_RATE); // The setpoint publishing rate MUST be faster than 2Hz
 
     while (ros::ok() && !imu_msg)
     {
