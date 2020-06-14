@@ -259,10 +259,10 @@ int main(int argc, char **argv)
             saveRawData(gps_msg, livox_msg);
         }
 
-        // if (use_pi && spin_count % LED_JUMP == 0)
-        // {
-        //     set_led();
-        // }
+        if (use_pi && spin_count % LED_JUMP == 0)
+        {
+            set_led();
+        }
         spin_count++;
 
         ros::spinOnce();
