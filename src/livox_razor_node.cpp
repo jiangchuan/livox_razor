@@ -21,6 +21,9 @@
 // #include <sys/types.h>
 // #include <unistd.h>
 
+#include <stdio.h>
+#include <pigpio.h>
+
 #define ROS_RATE 20
 #define SAVE_SIZE 10000
 #define LED_JUMP 10
@@ -42,8 +45,6 @@ time_t last_write_time = 0;
 
 bool use_pi = true;
 // bool use_pi = false;
-
-int fd;
 
 time_t get_time()
 {
@@ -194,23 +195,14 @@ void set_led()
         {
             led_value = 1;
             // digitalWrite(0, led_value);
-
-            if (write(fd, "1", 1) != 1)
-            {
-                perror("Error writing to /sys/class/gpio/gpio24/value");
-                exit(1);
-            }
+            gpioWrite(24, 1); /* on */
         }
     }
     else
     {
         led_value = 0;
         // digitalWrite(0, led_value);
-        if (write(fd, "0", 1) != 1)
-        {
-            perror("Error writing to /sys/class/gpio/gpio24/value");
-            exit(1);
-        }
+        gpioWrite(24, 0); /* off */
     }
 }
 
@@ -218,40 +210,13 @@ int main(int argc, char **argv)
 {
     if (use_pi)
     {
-        // // Export the desired pin by writing to /sys/class/gpio/export
-        // fd = open("/sys/class/gpio/export", O_WRONLY);
-        // if (fd == -1)
-        // {
-        //     perror("Unable to open /sys/class/gpio/export");
-        //     exit(1);
-        // }
-
-        // if (write(fd, "24", 2) != 2)
-        // {
-        //     perror("Error writing to /sys/class/gpio/export");
-        //     exit(1);
-        // }
-        // close(fd);
-
-        // // Set the pin to be an output by writing "out" to /sys/class/gpio/gpio24/direction
-        // fd = open("/sys/class/gpio/gpio24/direction", O_WRONLY);
-        // if (fd == -1)
-        // {
-        //     perror("Unable to open /sys/class/gpio/gpio24/direction");
-        //     exit(1);
-        // }
-        // if (write(fd, "out", 3) != 3)
-        // {
-        //     perror("Error writing to /sys/class/gpio/gpio24/direction");
-        //     exit(1);
-        // }
-        // close(fd);
-        // fd = open("/sys/class/gpio/gpio24/value", O_WRONLY);
-        // if (fd == -1)
-        // {
-        //     perror("Unable to open /sys/class/gpio/gpio24/value");
-        //     exit(1);
-        // }
+        if (gpioInitialise() < 0)
+        {
+            fprintf(stderr, "pigpio initialisation failed\n");
+            return 1;
+        }
+        /* Set GPIO modes */
+        gpioSetMode(24, PI_OUTPUT);
 
         rootdir = "/home/ubuntu/livox_data/";
     }
@@ -304,21 +269,8 @@ int main(int argc, char **argv)
         rate.sleep();
     }
 
-    // close(fd);
+    /* Stop DMA, release resources */
+    gpioTerminate();
 
-    // // Unexport the pin by writing to /sys/class/gpio/unexport
-    // fd = open("/sys/class/gpio/unexport", O_WRONLY);
-    // if (fd == -1)
-    // {
-    //     perror("Unable to open /sys/class/gpio/unexport");
-    //     exit(1);
-    // }
-    // if (write(fd, "24", 2) != 2)
-    // {
-    //     perror("Error writing to /sys/class/gpio/unexport");
-    //     exit(1);
-    // }
-    // close(fd);
-    
     return 0;
 }
