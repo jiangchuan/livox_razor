@@ -23,7 +23,6 @@
 
 sensor_msgs::Imu::ConstPtr imu_msg;
 sensor_msgs::NavSatFix::ConstPtr gps_msg;
-sensor_msgs::PointCloud2::ConstPtr livox_msg;
 
 double localx = 0.0, localy = 0.0, localz = 0.0;
 int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
@@ -31,13 +30,13 @@ int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
 std::string rootdir;
 std::string timedir;
 std::string gps_filename;
-int num_reads = 0;
 int num_writes = 0;
 int led_value = 0;
 time_t last_write_time = 0;
 
 bool use_pi = true;
 // bool use_pi = false;
+int spin_count = 0;
 
 time_t get_time()
 {
@@ -84,6 +83,24 @@ std::string get_time_str()
     return sstm.str();
 }
 
+void set_led()
+{
+    if (led_value == 0)
+    {
+        time_t now = time(0);
+        if (difftime(now, last_write_time) < 1)
+        {
+            led_value = 1;
+            gpioWrite(24, 1); /* on */
+        }
+    }
+    else
+    {
+        led_value = 0;
+        gpioWrite(24, 0); /* off */
+    }
+}
+
 void compute_local_xyz(double lidarx, double lidary, double lidarz)
 {
     tf2::Quaternion qtn = tf2::Quaternion(imu_msg->orientation.x, imu_msg->orientation.y, imu_msg->orientation.z, imu_msg->orientation.w);
@@ -93,25 +110,9 @@ void compute_local_xyz(double lidarx, double lidary, double lidarz)
     localz = qtn_local.getZ();
 }
 
-void imu_callback(const sensor_msgs::Imu::ConstPtr &msg)
+void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
 {
-    imu_msg = msg;
-}
-
-void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg)
-{
-    gps_msg = msg;
-}
-
-void livox_callback(const sensor_msgs::PointCloud2::ConstPtr &msg)
-{
-    livox_msg = msg;
-    num_reads++;
-}
-
-void saveRawData(sensor_msgs::NavSatFix::ConstPtr gps_msg, sensor_msgs::PointCloud2::ConstPtr livox_msg)
-{
-    if (gps_msg && livox_msg)
+    if (imu_msg && gps_msg && livox_msg)
     {
         time_t now = get_time();
         std::string time_str = get_time_str();
@@ -122,7 +123,7 @@ void saveRawData(sensor_msgs::NavSatFix::ConstPtr gps_msg, sensor_msgs::PointClo
         }
         last_write_time = now;
 
-        gps_filename = timedir + time_str + "_" + std::to_string(num_writes) + ".csv";
+        gps_filename = timedir + time_str + "_" + std::to_string(num_writes) + "_" + std::to_string(boost::this_thread::get_id()) + ".csv";
 
         sensor_msgs::PointCloud pt_cloud;
         sensor_msgs::convertPointCloud2ToPointCloud(*livox_msg, pt_cloud);
@@ -180,25 +181,28 @@ void saveRawData(sensor_msgs::NavSatFix::ConstPtr gps_msg, sensor_msgs::PointClo
         }
 
         num_writes++;
+
+        if (use_pi && spin_count % LED_JUMP == 0)
+        {
+            set_led();
+        }
+        spin_count++;
     }
 }
 
-void set_led()
+void imu_callback(const sensor_msgs::Imu::ConstPtr &msg)
 {
-    if (led_value == 0)
-    {
-        time_t now = time(0);
-        if (difftime(now, last_write_time) < 1)
-        {
-            led_value = 1;
-            gpioWrite(24, 1); /* on */
-        }
-    }
-    else
-    {
-        led_value = 0;
-        gpioWrite(24, 0); /* off */
-    }
+    imu_msg = msg;
+}
+
+void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg)
+{
+    gps_msg = msg;
+}
+
+void livox_callback(const sensor_msgs::PointCloud2::ConstPtr &msg)
+{
+    saveRawData(msg);
 }
 
 int main(int argc, char **argv)
@@ -228,41 +232,38 @@ int main(int argc, char **argv)
     ros::Subscriber livox_sub = nh.subscribe<sensor_msgs::PointCloud2>("livox/lidar", 10, livox_callback);
     ros::Rate rate((double)ROS_RATE); // The setpoint publishing rate MUST be faster than 2Hz
 
-    while (ros::ok() && !imu_msg)
-    {
-        ros::spinOnce();
-        rate.sleep();
-        ROS_INFO("Getting local position ...");
-    }
-    ROS_INFO("Got IMU");
+    // while (ros::ok() && !imu_msg)
+    // {
+    //     ros::spinOnce();
+    //     rate.sleep();
+    //     ROS_INFO("Getting local position ...");
+    // }
+    // ROS_INFO("Got IMU");
 
-    while (ros::ok() && !gps_msg)
-    {
-        ros::spinOnce();
-        rate.sleep();
-        ROS_INFO("Getting GPS ...");
-    }
-    ROS_INFO("Got GPS");
+    // while (ros::ok() && !gps_msg)
+    // {
+    //     ros::spinOnce();
+    //     rate.sleep();
+    //     ROS_INFO("Getting GPS ...");
+    // }
+    // ROS_INFO("Got GPS");
 
-    // Infinite loop
-    int spin_count = 0;
-    while (ros::ok())
-    {
-        // ROS_INFO("num_reads = %d, num_writes = %d", num_reads, num_writes);
-        if (num_writes < num_reads)
-        {
-            saveRawData(gps_msg, livox_msg);
-        }
+    ros::AsyncSpinner s(4); // Use 4 threads
+    // ROS_INFO_STREAM("Main loop in thread:" << boost::this_thread::get_id());
+    s.start();
+    ros::waitForShutdown();
 
-        if (use_pi && spin_count % LED_JUMP == 0)
-        {
-            set_led();
-        }
-        spin_count++;
-
-        ros::spinOnce();
-        rate.sleep();
-    }
+    // // Infinite loop
+    // while (ros::ok())
+    // {
+    //     // ROS_INFO("num_reads = %d, num_writes = %d", num_reads, num_writes);
+    //     if (num_writes < num_reads)
+    //     {
+    //         saveRawData(gps_msg, livox_msg);
+    //     }
+    //     ros::spinOnce();
+    //     rate.sleep();
+    // }
 
     /* Stop DMA, release resources */
     gpioTerminate();
