@@ -87,6 +87,8 @@ std::string get_time_str()
 void compute_local_xyz(double lidarx, double lidary, double lidarz)
 {
     tf2::Quaternion qtn = tf2::Quaternion(imu_msg->orientation.x, imu_msg->orientation.y, imu_msg->orientation.z, imu_msg->orientation.w);
+    // qtn.normalize();
+    // tf2::Quaternion qtn_local = qtn * tf2::Quaternion(lidarx, lidary, lidarz, 0.0) * qtn.inverse().normalize();
     tf2::Quaternion qtn_local = qtn * tf2::Quaternion(lidarx, lidary, lidarz, 0.0) * qtn.inverse();
     localx = qtn_local.getX();
     localy = qtn_local.getY();
@@ -149,16 +151,10 @@ void saveRawData(sensor_msgs::NavSatFix::ConstPtr gps_msg, sensor_msgs::PointClo
                     stream << std::setprecision(11) << gps_msg->longitude << ",";
                     stream << std::setprecision(7) << gps_msg->altitude << ",";
 
-                    // compute_local_xyz(point.z, -point.y, point.x);
-                    // stream << std::setprecision(4) << localx << ",";
-                    // stream << std::setprecision(4) << localy << ",";
-                    // stream << std::setprecision(4) << localz << ",";
-
-                    stream << std::setprecision(4) << imu_msg->orientation.x << ",";
-                    stream << std::setprecision(4) << imu_msg->orientation.y << ",";
-                    stream << std::setprecision(4) << imu_msg->orientation.z << ",";
-                    stream << std::setprecision(4) << imu_msg->orientation.w << ",";
-
+                    compute_local_xyz(point.z, -point.y, point.x);
+                    stream << std::setprecision(4) << localx << ",";
+                    stream << std::setprecision(4) << localy << ",";
+                    stream << std::setprecision(4) << localz << ",";
                     stream << std::setprecision(4) << point.x << ",";
                     stream << std::setprecision(4) << point.y << ",";
                     stream << std::setprecision(4) << point.z << ",";
