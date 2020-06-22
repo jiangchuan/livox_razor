@@ -13,12 +13,13 @@
 #include <tf2/convert.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Transform.h>
+// #include <boost/thread/thread.hpp>
 
 #include <stdio.h>
 #include <pigpio.h>
 
 #define ROS_RATE 20
-#define SAVE_SIZE 10000
+#define SAVE_SIZE 5000
 #define LED_JUMP 10
 
 sensor_msgs::Imu::ConstPtr imu_msg;
@@ -114,11 +115,10 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
         }
         last_write_time = now;
 
-        // gps_filename = timedir + time_str + "_" + std::to_string(num_writes) + "_" + std::to_string(boost::this_thread::get_id()) + ".csv";
-
-        std::stringstream ss;
-        ss << timedir << time_str << "_" << num_writes << "_" << boost::this_thread::get_id() << ".csv";
-        gps_filename = ss.str();
+        gps_filename = timedir + time_str + "_" + std::to_string(num_writes) + ".csv";
+        // std::stringstream ss;
+        // ss << timedir << time_str << "_" << num_writes << "_" << boost::this_thread::get_id() << ".csv";
+        // gps_filename = ss.str();
 
         sensor_msgs::PointCloud pt_cloud;
         sensor_msgs::convertPointCloud2ToPointCloud(*livox_msg, pt_cloud);
@@ -217,13 +217,12 @@ int main(int argc, char **argv)
 
     ros::init(argc, argv, "livox_razor");
     ros::NodeHandle nh;
-    ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("imu", 10, imu_callback);         // Razor IMU
-    ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>("qxgps", 10, gps_callback); // QX GPS
-    ros::Subscriber livox_sub = nh.subscribe<sensor_msgs::PointCloud2>("livox/lidar", 10, livox_callback);
+    ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("imu", 1, imu_callback);         // Razor IMU
+    ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>("qxgps", 1, gps_callback); // QX GPS
+    ros::Subscriber livox_sub = nh.subscribe<sensor_msgs::PointCloud2>("livox/lidar", 1, livox_callback);
     ros::Rate rate((double)ROS_RATE); // The setpoint publishing rate MUST be faster than 2Hz
 
     ros::AsyncSpinner s(4); // Use 4 threads
-    // ROS_INFO_STREAM("Main loop in thread:" << boost::this_thread::get_id());
     s.start();
     ros::waitForShutdown();
 
