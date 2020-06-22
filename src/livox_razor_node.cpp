@@ -222,8 +222,8 @@ int main(int argc, char **argv)
     ros::Subscriber livox_sub = nh.subscribe<sensor_msgs::PointCloud2>("livox/lidar", 1, livox_callback);
     ros::Rate rate((double)ROS_RATE); // The setpoint publishing rate MUST be faster than 2Hz
 
-    ros::AsyncSpinner s(4); // Use 4 threads
-    s.start();
+    ros::AsyncSpinner aSpinner(0); // Set 0: use a thread for each CPU core
+    aSpinner.start();
     ros::waitForShutdown();
 
     /* Stop DMA, release resources */
