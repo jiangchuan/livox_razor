@@ -101,15 +101,6 @@ void set_led()
     }
 }
 
-void compute_local_xyz(double lidarx, double lidary, double lidarz)
-{
-    tf2::Quaternion qtn = tf2::Quaternion(imu_msg->orientation.x, imu_msg->orientation.y, imu_msg->orientation.z, imu_msg->orientation.w);
-    tf2::Quaternion qtn_local = qtn * tf2::Quaternion(lidarx, lidary, lidarz, 0.0) * qtn.inverse();
-    localx = qtn_local.getX();
-    localy = qtn_local.getY();
-    localz = qtn_local.getZ();
-}
-
 void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
 {
     if (imu_msg && gps_msg && livox_msg)
@@ -123,7 +114,11 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
         }
         last_write_time = now;
 
-        gps_filename = timedir + time_str + "_" + std::to_string(num_writes) + "_" + std::to_string(boost::this_thread::get_id()) + ".csv";
+        // gps_filename = timedir + time_str + "_" + std::to_string(num_writes) + "_" + std::to_string(boost::this_thread::get_id()) + ".csv";
+
+        std::stringstream ss;
+        ss << timedir << time_str << "_" << num_writes << "_" << boost::this_thread::get_id() << ".csv";
+        gps_filename = ss.str();
 
         sensor_msgs::PointCloud pt_cloud;
         sensor_msgs::convertPointCloud2ToPointCloud(*livox_msg, pt_cloud);
@@ -149,11 +144,6 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
                     stream << std::setprecision(10) << gps_msg->latitude << ",";
                     stream << std::setprecision(11) << gps_msg->longitude << ",";
                     stream << std::setprecision(7) << gps_msg->altitude << ",";
-
-                    // compute_local_xyz(point.z, -point.y, point.x);
-                    // stream << std::setprecision(4) << localx << ",";
-                    // stream << std::setprecision(4) << localy << ",";
-                    // stream << std::setprecision(4) << localz << ",";
 
                     stream << std::setprecision(4) << imu_msg->orientation.x << ",";
                     stream << std::setprecision(4) << imu_msg->orientation.y << ",";
@@ -232,38 +222,10 @@ int main(int argc, char **argv)
     ros::Subscriber livox_sub = nh.subscribe<sensor_msgs::PointCloud2>("livox/lidar", 10, livox_callback);
     ros::Rate rate((double)ROS_RATE); // The setpoint publishing rate MUST be faster than 2Hz
 
-    // while (ros::ok() && !imu_msg)
-    // {
-    //     ros::spinOnce();
-    //     rate.sleep();
-    //     ROS_INFO("Getting local position ...");
-    // }
-    // ROS_INFO("Got IMU");
-
-    // while (ros::ok() && !gps_msg)
-    // {
-    //     ros::spinOnce();
-    //     rate.sleep();
-    //     ROS_INFO("Getting GPS ...");
-    // }
-    // ROS_INFO("Got GPS");
-
     ros::AsyncSpinner s(4); // Use 4 threads
     // ROS_INFO_STREAM("Main loop in thread:" << boost::this_thread::get_id());
     s.start();
     ros::waitForShutdown();
-
-    // // Infinite loop
-    // while (ros::ok())
-    // {
-    //     // ROS_INFO("num_reads = %d, num_writes = %d", num_reads, num_writes);
-    //     if (num_writes < num_reads)
-    //     {
-    //         saveRawData(gps_msg, livox_msg);
-    //     }
-    //     ros::spinOnce();
-    //     rate.sleep();
-    // }
 
     /* Stop DMA, release resources */
     gpioTerminate();
