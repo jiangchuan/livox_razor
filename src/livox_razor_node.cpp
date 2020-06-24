@@ -13,7 +13,7 @@
 #include <tf2/convert.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Transform.h>
-// #include <boost/thread/thread.hpp>
+#include <boost/thread/thread.hpp>
 
 #include <stdio.h>
 #include <pigpio.h>
@@ -31,13 +31,15 @@ int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
 std::string rootdir;
 std::string timedir;
 std::string gps_filename;
-int num_writes = 0;
+// int num_writes = 0;
 int led_value = 0;
 time_t last_write_time = 0;
 
 bool use_pi = true;
 // bool use_pi = false;
 int spin_count = 0;
+
+std::map<boost::thread::id, int> num_writes_map;
 
 time_t get_time()
 {
@@ -115,10 +117,22 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
         }
         last_write_time = now;
 
-        gps_filename = timedir + time_str + "_" + std::to_string(num_writes) + ".csv";
-        // std::stringstream ss;
-        // ss << timedir << time_str << "_" << num_writes << "_" << boost::this_thread::get_id() << ".csv";
-        // gps_filename = ss.str();
+        // gps_filename = timedir + time_str + "_" + std::to_string(num_writes) + ".csv";
+
+        boost::thread::id this_id = boost::this_thread::get_id();
+
+        if (num_writes_map.find(this_id) == num_writes_map.end())
+        {
+            num_writes_map[this_id] = 0;
+        }
+        else
+        {
+            num_writes_map[this_id]++;
+        }
+
+        std::stringstream ss;
+        ss << timedir << time_str << "_" << this_id << "_" << num_writes_map[this_id] << ".csv";
+        gps_filename = ss.str();
 
         sensor_msgs::PointCloud pt_cloud;
         sensor_msgs::convertPointCloud2ToPointCloud(*livox_msg, pt_cloud);
@@ -170,7 +184,7 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
             file.close();
         }
 
-        num_writes++;
+        // num_writes++;
 
         if (use_pi && spin_count % LED_JUMP == 0)
         {
