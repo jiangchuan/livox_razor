@@ -33,13 +33,14 @@ std::string timedir;
 std::string gps_filename;
 // int num_writes = 0;
 int led_value = 0;
-time_t last_write_time = 0;
+// time_t last_write_time = 0;
 
 bool use_pi = true;
 // bool use_pi = false;
-int spin_count = 0;
+// int spin_count = 0;
 
 std::map<boost::thread::id, int> num_writes_map;
+std::map<boost::thread::id, time_t> last_time_map;
 
 time_t get_time()
 {
@@ -86,20 +87,32 @@ std::string get_time_str()
     return sstm.str();
 }
 
+// void set_led()
+// {
+//     if (led_value == 0)
+//     {
+//         time_t now = time(0);
+//         if (difftime(now, last_write_time) < 1)
+//         {
+//             led_value = 1;
+//             gpioWrite(24, 1); /* on */
+//         }
+//     }
+//     else
+//     {
+//         led_value = 0;
+//         gpioWrite(24, 0); /* off */
+//     }
+// }
+
 void set_led()
 {
-    if (led_value == 0)
+    if (second % 2 == 0)
     {
-        time_t now = time(0);
-        if (difftime(now, last_write_time) < 1)
-        {
-            led_value = 1;
-            gpioWrite(24, 1); /* on */
-        }
+        gpioWrite(24, 1); /* on */
     }
     else
     {
-        led_value = 0;
         gpioWrite(24, 0); /* off */
     }
 }
@@ -110,16 +123,22 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
     {
         time_t now = get_time();
         std::string time_str = get_time_str();
-        if (difftime(now, last_write_time) > 60)
+
+        boost::thread::id this_id = boost::this_thread::get_id();
+
+        if (last_time_map.find(this_id) == last_time_map.end())
+        {
+            last_time_map[this_id] = 0;
+        }
+
+        if (difftime(now, last_time_map[this_id]) > 60)
         {
             timedir = rootdir + time_str + "/";
             int status = mkdir(timedir.c_str(), 0777);
         }
-        last_write_time = now;
+        last_time_map[this_id] = now;
 
         // gps_filename = timedir + time_str + "_" + std::to_string(num_writes) + ".csv";
-
-        boost::thread::id this_id = boost::this_thread::get_id();
 
         if (num_writes_map.find(this_id) == num_writes_map.end())
         {
@@ -186,11 +205,12 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
 
         // num_writes++;
 
-        if (use_pi && spin_count % LED_JUMP == 0)
-        {
-            set_led();
-        }
-        spin_count++;
+        // if (use_pi && spin_count % LED_JUMP == 0)
+        // {
+        //     set_led();
+        // }
+        // spin_count++;
+        set_led();
     }
 }
 
