@@ -31,13 +31,9 @@ int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
 std::string rootdir;
 std::string timedir;
 std::string gps_filename;
-// int num_writes = 0;
 int led_value = 0;
-// time_t last_write_time = 0;
 
 bool use_pi = true;
-// bool use_pi = false;
-// int spin_count = 0;
 
 std::map<boost::thread::id, int> num_writes_map;
 std::map<boost::thread::id, time_t> last_time_map;
@@ -55,55 +51,17 @@ time_t get_time()
     return now;
 }
 
-std::string get_time_str()
+std::string digit2str(int num)
 {
-    std::stringstream sstm;
-    sstm << year << "-";
-    if (month < 10)
-    {
-        sstm << "0";
-    }
-    sstm << month << "-";
-    if (day < 10)
-    {
-        sstm << "0";
-    }
-    sstm << day << "_";
-    if (hour < 10)
-    {
-        sstm << "0";
-    }
-    sstm << hour << "-";
-    if (minute < 10)
-    {
-        sstm << "0";
-    }
-    sstm << minute << "-";
-    if (second < 10)
-    {
-        sstm << "0";
-    }
-    sstm << second;
-    return sstm.str();
+    if (num < 10)
+        return "0" + std::to_string(num);
+    return std::to_string(num);
 }
 
-// void set_led()
-// {
-//     if (led_value == 0)
-//     {
-//         time_t now = time(0);
-//         if (difftime(now, last_write_time) < 1)
-//         {
-//             led_value = 1;
-//             gpioWrite(24, 1); /* on */
-//         }
-//     }
-//     else
-//     {
-//         led_value = 0;
-//         gpioWrite(24, 0); /* off */
-//     }
-// }
+std::string get_time_str()
+{
+    return std::to_string(year) + "-" + digit2str(month) + "-" + digit2str(day) + "_" + digit2str(hour) + "-" + digit2str(minute) + "-" + digit2str(second);
+}
 
 void set_led()
 {
@@ -137,8 +95,6 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
             int status = mkdir(timedir.c_str(), 0777);
         }
         last_time_map[this_id] = now;
-
-        // gps_filename = timedir + time_str + "_" + std::to_string(num_writes) + ".csv";
 
         if (num_writes_map.find(this_id) == num_writes_map.end())
         {
@@ -203,13 +159,6 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
             file.close();
         }
 
-        // num_writes++;
-
-        // if (use_pi && spin_count % LED_JUMP == 0)
-        // {
-        //     set_led();
-        // }
-        // spin_count++;
         set_led();
     }
 }
