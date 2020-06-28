@@ -1,0 +1,4 @@
+<launch>
+    <include file="$(find mongodb_store)/launch/mongodb_store.launch" />
+    <node pkg="livox_razor" type="livox_razor_node" name="livox_razor_node" output="screen" />
+</launch>
