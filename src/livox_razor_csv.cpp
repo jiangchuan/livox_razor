@@ -18,13 +18,6 @@
 #include <stdio.h>
 #include <pigpio.h>
 
-///////////////////////////////////////
-#include "mongodb_store/message_store.h"
-#include "geometry_msgs/Pose.h"
-#include <boost/foreach.hpp>
-#include <cassert>
-///////////////////////////////////////
-
 #define ROS_RATE 20
 #define SAVE_SIZE 5000
 #define LED_JUMP 10
@@ -211,18 +204,6 @@ int main(int argc, char **argv)
     ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>("qxgps", 1, gps_callback); // QX GPS
     ros::Subscriber livox_sub = nh.subscribe<sensor_msgs::PointCloud2>("livox/lidar", 1, livox_callback);
     ros::Rate rate((double)ROS_RATE); // The setpoint publishing rate MUST be faster than 2Hz
-
-    ///////////////////////////////////////////////////////////////
-    mongodb_store::MessageStoreProxy messageStore(nh);
-    geometry_msgs::Pose p;
-    std::string name("my pose");
-
-    //Insert something with a name, storing id too
-    std::string id(messageStore.insertNamed(name, p));
-    std::cout << "Pose \"" << name << "\" inserted with id " << id << std::endl;
-    p.position.z = 666;
-    messageStore.updateID(id, p);
-    ///////////////////////////////////////////////////////////////
 
     ros::AsyncSpinner aSpinner(0); // Set 0: use a thread for each CPU core
     aSpinner.start();
