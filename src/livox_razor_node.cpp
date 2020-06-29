@@ -46,7 +46,7 @@ std::map<boost::thread::id, int> num_writes_map;
 std::map<boost::thread::id, time_t> last_time_map;
 
 ////////
-mongodb_store::MessageStoreProxy *messageStore;
+// mongodb_store::MessageStoreProxy *messageStore;
 ////////
 
 // time_t get_time()
@@ -201,22 +201,47 @@ int main(int argc, char **argv)
 
     ros::init(argc, argv, "livox_razor");
     ros::NodeHandle nh;
-    // messageStore = new mongodb_store::MessageStoreProxy(nh);
-    mongodb_store::MessageStoreProxy messageStore1(nh);
 
+    mongodb_store::MessageStoreProxy messageStore(nh);
+
+    //This is the message we want to store
     geometry_msgs::Pose p;
     std::string name("my pose");
-
     //Insert something with a name, storing id too
-    // std::string id(messageStore->insertNamed(name, p));
-    std::string id(messageStore1.insertNamed(name, p));
-
-    // insert(message, meta={}, wait=True)
-
+    std::string id(messageStore.insertNamed(name, p));
     std::cout << "Pose \"" << name << "\" inserted with id " << id << std::endl;
+
     p.position.z = 666;
-    // messageStore->updateID(id, p);
-    messageStore1.updateID(id, p);
+    messageStore.updateID(id, p);
+
+    std::vector<boost::shared_ptr<geometry_msgs::Pose>> results;
+
+    //Get it back, by default get one
+    if (messageStore.queryNamed<geometry_msgs::Pose>(name, results))
+    {
+
+        BOOST_FOREACH (boost::shared_ptr<geometry_msgs::Pose> p, results)
+        {
+            ROS_INFO_STREAM("Got by name: " << *p);
+        }
+    }
+
+    // // messageStore = new mongodb_store::MessageStoreProxy(nh);
+    // mongodb_store::MessageStoreProxy messageStore1(nh);
+
+    // geometry_msgs::Pose p;
+    // std::string name("my pose");
+
+    // //Insert something with a name, storing id too
+    // // std::string id(messageStore->insertNamed(name, p));
+    // std::string id(messageStore1.insertNamed(name, p));
+
+    // // insert(message, meta={}, wait=True)
+
+    // std::cout << "Pose \"" << name << "\" inserted with id " << id << std::endl;
+    // p.position.z = 666;
+    // // messageStore->updateID(id, p);
+    // messageStore1.updateID(id, p);
 
     // ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("imu", 1, imu_callback);         // Razor IMU
     // ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>("qxgps", 1, gps_callback); // QX GPS
