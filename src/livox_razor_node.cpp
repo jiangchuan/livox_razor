@@ -46,33 +46,33 @@ std::map<boost::thread::id, int> num_writes_map;
 std::map<boost::thread::id, time_t> last_time_map;
 
 ////////
-// mongodb_store::MessageStoreProxy *messageStore;
+mongodb_store::MessageStoreProxy *messageStore;
 ////////
 
-// time_t get_time()
-// {
-//     time_t now = time(0);
-//     tm *ltm = localtime(&now);
-//     year = 1900 + ltm->tm_year;
-//     month = 1 + ltm->tm_mon;
-//     day = ltm->tm_mday;
-//     hour = ltm->tm_hour;
-//     minute = ltm->tm_min;
-//     second = ltm->tm_sec;
-//     return now;
-// }
+time_t get_time()
+{
+    time_t now = time(0);
+    tm *ltm = localtime(&now);
+    year = 1900 + ltm->tm_year;
+    month = 1 + ltm->tm_mon;
+    day = ltm->tm_mday;
+    hour = ltm->tm_hour;
+    minute = ltm->tm_min;
+    second = ltm->tm_sec;
+    return now;
+}
 
-// std::string digit2str(int num)
-// {
-//     if (num < 10)
-//         return "0" + std::to_string(num);
-//     return std::to_string(num);
-// }
+std::string digit2str(int num)
+{
+    if (num < 10)
+        return "0" + std::to_string(num);
+    return std::to_string(num);
+}
 
-// std::string get_time_str()
-// {
-//     return std::to_string(year) + "-" + digit2str(month) + "-" + digit2str(day) + "_" + digit2str(hour) + "-" + digit2str(minute) + "-" + digit2str(second);
-// }
+std::string get_time_str()
+{
+    return std::to_string(year) + "-" + digit2str(month) + "-" + digit2str(day) + "_" + digit2str(hour) + "-" + digit2str(minute) + "-" + digit2str(second);
+}
 
 // void set_led()
 // {
@@ -86,98 +86,98 @@ std::map<boost::thread::id, time_t> last_time_map;
 //     }
 // }
 
-// void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
-// {
-//     if (imu_msg && gps_msg && livox_msg)
-//     {
-//         time_t now = get_time();
-//         std::string time_str = get_time_str();
+void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
+{
+    if (imu_msg && gps_msg && livox_msg)
+    {
+        time_t now = get_time();
+        std::string time_str = get_time_str();
 
-//         boost::thread::id this_id = boost::this_thread::get_id();
+        boost::thread::id this_id = boost::this_thread::get_id();
 
-//         if (last_time_map.find(this_id) == last_time_map.end())
-//         {
-//             last_time_map[this_id] = 0;
-//         }
+        if (last_time_map.find(this_id) == last_time_map.end())
+        {
+            last_time_map[this_id] = 0;
+        }
 
-//         if (difftime(now, last_time_map[this_id]) > 60)
-//         {
-//             timedir = rootdir + time_str + "/";
-//             int status = mkdir(timedir.c_str(), 0777);
-//         }
-//         last_time_map[this_id] = now;
+        if (difftime(now, last_time_map[this_id]) > 60)
+        {
+            timedir = rootdir + time_str + "/";
+            int status = mkdir(timedir.c_str(), 0777);
+        }
+        last_time_map[this_id] = now;
 
-//         if (num_writes_map.find(this_id) == num_writes_map.end())
-//         {
-//             num_writes_map[this_id] = 0;
-//         }
-//         else
-//         {
-//             num_writes_map[this_id]++;
-//         }
+        if (num_writes_map.find(this_id) == num_writes_map.end())
+        {
+            num_writes_map[this_id] = 0;
+        }
+        else
+        {
+            num_writes_map[this_id]++;
+        }
 
-//         std::stringstream ss;
-//         ss << timedir << time_str << "_" << this_id << "_" << num_writes_map[this_id] << ".csv";
-//         gps_filename = ss.str();
+        std::stringstream ss;
+        ss << timedir << time_str << "_" << this_id << "_" << num_writes_map[this_id] << ".csv";
+        gps_filename = ss.str();
 
-//         sensor_msgs::PointCloud pt_cloud;
-//         sensor_msgs::convertPointCloud2ToPointCloud(*livox_msg, pt_cloud);
-//         sensor_msgs::ChannelFloat32 channel = pt_cloud.channels[0];
+        sensor_msgs::PointCloud pt_cloud;
+        sensor_msgs::convertPointCloud2ToPointCloud(*livox_msg, pt_cloud);
+        sensor_msgs::ChannelFloat32 channel = pt_cloud.channels[0];
 
-//         std::stringstream stream;
-//         int pts_size = pt_cloud.points.size();
+        std::stringstream stream;
+        int pts_size = pt_cloud.points.size();
 
-//         float ijump = (float)pts_size / (float)SAVE_SIZE;
-//         float isum = 0.0f;
-//         int is = 1;
-//         for (int i = 0; i < pts_size; i++)
-//         {
-//             if (isum <= (float)i)
-//             {
-//                 geometry_msgs::Point32 point = pt_cloud.points[i];
-//                 // ROS_INFO("Point cloud %d: x=%f, y=%f, z=%f, intensity = %f", i, point.x, point.y, point.z, channel.values[i]);
+        float ijump = (float)pts_size / (float)SAVE_SIZE;
+        float isum = 0.0f;
+        int is = 1;
+        for (int i = 0; i < pts_size; i++)
+        {
+            if (isum <= (float)i)
+            {
+                geometry_msgs::Point32 point = pt_cloud.points[i];
+                // ROS_INFO("Point cloud %d: x=%f, y=%f, z=%f, intensity = %f", i, point.x, point.y, point.z, channel.values[i]);
 
-//                 // Save to csv
-//                 if (point.x > 1e-6 || fabs(point.y) > 1e-6 || fabs(point.z) > 1e-6)
-//                 {
-//                     // 3. GPS rod shift
+                // Save to csv
+                if (point.x > 1e-6 || fabs(point.y) > 1e-6 || fabs(point.z) > 1e-6)
+                {
+                    // 3. GPS rod shift
 
-//                     geometry_msgs::Pose p;
-//                     p.position.x = point.x;
-//                     p.position.y = point.y;
-//                     p.position.z = point.z;
+                    geometry_msgs::Pose p;
+                    p.position.x = point.x;
+                    p.position.y = point.y;
+                    p.position.z = point.z;
 
-//                     p.orientation.x = imu_msg->orientation.x;
-//                     p.orientation.y = imu_msg->orientation.y;
-//                     p.orientation.z = imu_msg->orientation.z;
-//                     p.orientation.w = imu_msg->orientation.w;
+                    p.orientation.x = imu_msg->orientation.x;
+                    p.orientation.y = imu_msg->orientation.y;
+                    p.orientation.z = imu_msg->orientation.z;
+                    p.orientation.w = imu_msg->orientation.w;
 
-//                     messageStore->insertNamed("Livox", p);
-//                 }
+                    messageStore->insertNamed("Livox", p);
+                }
 
-//                 is++;
-//                 isum += ijump;
-//             }
-//         }
+                is++;
+                isum += ijump;
+            }
+        }
 
-//         set_led();
-//     }
-// }
+        // set_led();
+    }
+}
 
-// void imu_callback(const sensor_msgs::Imu::ConstPtr &msg)
-// {
-//     imu_msg = msg;
-// }
+void imu_callback(const sensor_msgs::Imu::ConstPtr &msg)
+{
+    imu_msg = msg;
+}
 
-// void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg)
-// {
-//     gps_msg = msg;
-// }
+void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg)
+{
+    gps_msg = msg;
+}
 
-// void livox_callback(const sensor_msgs::PointCloud2::ConstPtr &msg)
-// {
-//     saveRawData(msg);
-// }
+void livox_callback(const sensor_msgs::PointCloud2::ConstPtr &msg)
+{
+    saveRawData(msg);
+}
 
 int main(int argc, char **argv)
 {
@@ -201,56 +201,33 @@ int main(int argc, char **argv)
 
     ros::init(argc, argv, "livox_razor");
     ros::NodeHandle nh;
+    messageStore = new mongodb_store::MessageStoreProxy(nh);
+    ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("imu", 1, imu_callback);         // Razor IMU
+    ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>("qxgps", 1, gps_callback); // QX GPS
+    ros::Subscriber livox_sub = nh.subscribe<sensor_msgs::PointCloud2>("livox/lidar", 1, livox_callback);
+    ros::Rate rate((double)ROS_RATE); // The setpoint publishing rate MUST be faster than 2Hz
 
-    mongodb_store::MessageStoreProxy messageStore(nh);
+    // ///////////////////////////////////////////////////////////////
+    // // mongodb_store::MessageStoreProxy messageStore(nh);
 
-    //This is the message we want to store
-    geometry_msgs::Pose p;
-    std::string name("my pose");
-    //Insert something with a name, storing id too
-    std::string id(messageStore.insertNamed(name, p));
-    std::cout << "Pose \"" << name << "\" inserted with id " << id << std::endl;
-
-    p.position.z = 666;
-    messageStore.updateID(id, p);
-
-    std::vector<boost::shared_ptr<geometry_msgs::Pose>> results;
-
-    //Get it back, by default get one
-    if (messageStore.queryNamed<geometry_msgs::Pose>(name, results))
-    {
-
-        BOOST_FOREACH (boost::shared_ptr<geometry_msgs::Pose> p, results)
-        {
-            ROS_INFO_STREAM("Got by name: " << *p);
-        }
-    }
-
-    // // messageStore = new mongodb_store::MessageStoreProxy(nh);
-    // mongodb_store::MessageStoreProxy messageStore1(nh);
+    // messageStore = new mongodb_store::MessageStoreProxy(nh);
 
     // geometry_msgs::Pose p;
     // std::string name("my pose");
 
     // //Insert something with a name, storing id too
-    // // std::string id(messageStore->insertNamed(name, p));
-    // std::string id(messageStore1.insertNamed(name, p));
+    // std::string id(messageStore->insertNamed(name, p));
 
     // // insert(message, meta={}, wait=True)
 
     // std::cout << "Pose \"" << name << "\" inserted with id " << id << std::endl;
     // p.position.z = 666;
-    // // messageStore->updateID(id, p);
-    // messageStore1.updateID(id, p);
+    // messageStore->updateID(id, p);
+    // ///////////////////////////////////////////////////////////////
 
-    // ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("imu", 1, imu_callback);         // Razor IMU
-    // ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>("qxgps", 1, gps_callback); // QX GPS
-    // ros::Subscriber livox_sub = nh.subscribe<sensor_msgs::PointCloud2>("livox/lidar", 1, livox_callback);
-    // ros::Rate rate((double)ROS_RATE); // The setpoint publishing rate MUST be faster than 2Hz
-
-    // ros::AsyncSpinner aSpinner(0); // Set 0: use a thread for each CPU core
-    // aSpinner.start();
-    // ros::waitForShutdown();
+    ros::AsyncSpinner aSpinner(0); // Set 0: use a thread for each CPU core
+    aSpinner.start();
+    ros::waitForShutdown();
 
     // /* Stop DMA, release resources */
     // gpioTerminate();
