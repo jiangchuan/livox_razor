@@ -74,6 +74,18 @@ std::string get_time_str()
     return std::to_string(year) + "-" + digit2str(month) + "-" + digit2str(day) + "_" + digit2str(hour) + "-" + digit2str(minute) + "-" + digit2str(second);
 }
 
+void set_led()
+{
+    if (second % 2 == 0)
+    {
+        gpioWrite(24, 1); /* on */
+    }
+    else
+    {
+        gpioWrite(24, 0); /* off */
+    }
+}
+
 void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
 {
     if (imu_msg && gps_msg && livox_msg)
@@ -141,13 +153,14 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
                     p.orientation.w = imu_msg->orientation.w;
 
                     messageStore->insertNamed("Livox", p);
-                    std::cout << "Entered here " << std::endl;
                 }
 
                 is++;
                 isum += ijump;
             }
         }
+
+        set_led();
     }
 }
 
@@ -168,35 +181,50 @@ void livox_callback(const sensor_msgs::PointCloud2::ConstPtr &msg)
 
 int main(int argc, char **argv)
 {
+    // if (use_pi)
+    // {
+    //     if (gpioInitialise() < 0)
+    //     {
+    //         fprintf(stderr, "pigpio initialisation failed\n");
+    //         return 1;
+    //     }
+    //     /* Set GPIO modes */
+    //     gpioSetMode(24, PI_OUTPUT);
+
+    //     rootdir = "/home/ubuntu/livox_data/";
+    // }
+    // else
+    // {
+    //     rootdir = "/home/jiangchuan/livox_data/";
+    // }
+    // int status = mkdir(rootdir.c_str(), 0777);
 
     ros::init(argc, argv, "livox_razor");
     ros::NodeHandle nh;
-    ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("imu", 1, imu_callback);         // Razor IMU
-    ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>("qxgps", 1, gps_callback); // QX GPS
-    ros::Subscriber livox_sub = nh.subscribe<sensor_msgs::PointCloud2>("livox/lidar", 1, livox_callback);
-    ros::Rate rate((double)ROS_RATE); // The setpoint publishing rate MUST be faster than 2Hz
+    messageStore = new mongodb_store::MessageStoreProxy(nh);
+    geometry_msgs::Pose p;
+    std::string name("my pose");
 
-    // ///////////////////////////////////////////////////////////////
-    // // mongodb_store::MessageStoreProxy messageStore(nh);
+    //Insert something with a name, storing id too
+    std::string id(messageStore->insertNamed(name, p));
 
-    // messageStore = new mongodb_store::MessageStoreProxy(nh);
+    // insert(message, meta={}, wait=True)
 
-    // geometry_msgs::Pose p;
-    // std::string name("my pose");
+    std::cout << "Pose \"" << name << "\" inserted with id " << id << std::endl;
+    p.position.z = 666;
+    messageStore->updateID(id, p);
 
-    // //Insert something with a name, storing id too
-    // std::string id(messageStore->insertNamed(name, p));
+    // ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("imu", 1, imu_callback);         // Razor IMU
+    // ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>("qxgps", 1, gps_callback); // QX GPS
+    // ros::Subscriber livox_sub = nh.subscribe<sensor_msgs::PointCloud2>("livox/lidar", 1, livox_callback);
+    // ros::Rate rate((double)ROS_RATE); // The setpoint publishing rate MUST be faster than 2Hz
 
-    // // insert(message, meta={}, wait=True)
+    // ros::AsyncSpinner aSpinner(0); // Set 0: use a thread for each CPU core
+    // aSpinner.start();
+    // ros::waitForShutdown();
 
-    // std::cout << "Pose \"" << name << "\" inserted with id " << id << std::endl;
-    // p.position.z = 666;
-    // messageStore->updateID(id, p);
-    // ///////////////////////////////////////////////////////////////
-
-    ros::AsyncSpinner aSpinner(0); // Set 0: use a thread for each CPU core
-    aSpinner.start();
-    ros::waitForShutdown();
+    // /* Stop DMA, release resources */
+    // gpioTerminate();
 
     return 0;
 }
