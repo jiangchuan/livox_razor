@@ -74,18 +74,6 @@ std::string get_time_str()
     return std::to_string(year) + "-" + digit2str(month) + "-" + digit2str(day) + "_" + digit2str(hour) + "-" + digit2str(minute) + "-" + digit2str(second);
 }
 
-void set_led()
-{
-    if (second % 2 == 0)
-    {
-        gpioWrite(24, 1); /* on */
-    }
-    else
-    {
-        gpioWrite(24, 0); /* off */
-    }
-}
-
 void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
 {
     if (imu_msg && gps_msg && livox_msg)
@@ -160,8 +148,6 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
                 isum += ijump;
             }
         }
-
-        // set_led();
     }
 }
 
@@ -182,23 +168,6 @@ void livox_callback(const sensor_msgs::PointCloud2::ConstPtr &msg)
 
 int main(int argc, char **argv)
 {
-    if (use_pi)
-    {
-        if (gpioInitialise() < 0)
-        {
-            fprintf(stderr, "pigpio initialisation failed\n");
-            return 1;
-        }
-        /* Set GPIO modes */
-        gpioSetMode(24, PI_OUTPUT);
-
-        rootdir = "/home/ubuntu/livox_data/";
-    }
-    else
-    {
-        rootdir = "/home/jiangchuan/livox_data/";
-    }
-    int status = mkdir(rootdir.c_str(), 0777);
 
     ros::init(argc, argv, "livox_razor");
     ros::NodeHandle nh;
@@ -228,9 +197,6 @@ int main(int argc, char **argv)
     ros::AsyncSpinner aSpinner(0); // Set 0: use a thread for each CPU core
     aSpinner.start();
     ros::waitForShutdown();
-
-    /* Stop DMA, release resources */
-    gpioTerminate();
 
     return 0;
 }
