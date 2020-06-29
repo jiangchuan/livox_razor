@@ -153,6 +153,7 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
                     p.orientation.w = imu_msg->orientation.w;
 
                     messageStore->insertNamed("Livox", p);
+                    std::cout << "Entered here " << std::endl;
                 }
 
                 is++;
@@ -160,7 +161,7 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
             }
         }
 
-        set_led();
+        // set_led();
     }
 }
 
