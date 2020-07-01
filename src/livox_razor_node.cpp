@@ -16,110 +16,21 @@
 #include <boost/thread/thread.hpp>
 
 #include <stdio.h>
-#include <pigpio.h>
 
-///////////////////////////////////////
 #include "mongodb_store/message_store.h"
 #include "geometry_msgs/Pose.h"
-#include <boost/foreach.hpp>
-#include <cassert>
-///////////////////////////////////////
 
 #define ROS_RATE 20
 #define SAVE_SIZE 5000
-#define LED_JUMP 10
 
 sensor_msgs::Imu::ConstPtr imu_msg;
 sensor_msgs::NavSatFix::ConstPtr gps_msg;
-
-double localx = 0.0, localy = 0.0, localz = 0.0;
-int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
-
-std::string rootdir;
-std::string timedir;
-std::string gps_filename;
-int led_value = 0;
-
-bool use_pi = true;
-
-std::map<boost::thread::id, int> num_writes_map;
-std::map<boost::thread::id, time_t> last_time_map;
-
-////////
 mongodb_store::MessageStoreProxy *messageStore;
-////////
-
-time_t get_time()
-{
-    time_t now = time(0);
-    tm *ltm = localtime(&now);
-    year = 1900 + ltm->tm_year;
-    month = 1 + ltm->tm_mon;
-    day = ltm->tm_mday;
-    hour = ltm->tm_hour;
-    minute = ltm->tm_min;
-    second = ltm->tm_sec;
-    return now;
-}
-
-std::string digit2str(int num)
-{
-    if (num < 10)
-        return "0" + std::to_string(num);
-    return std::to_string(num);
-}
-
-std::string get_time_str()
-{
-    return std::to_string(year) + "-" + digit2str(month) + "-" + digit2str(day) + "_" + digit2str(hour) + "-" + digit2str(minute) + "-" + digit2str(second);
-}
-
-// void set_led()
-// {
-//     if (second % 2 == 0)
-//     {
-//         gpioWrite(24, 1); /* on */
-//     }
-//     else
-//     {
-//         gpioWrite(24, 0); /* off */
-//     }
-// }
 
 void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
 {
     if (imu_msg && gps_msg && livox_msg)
     {
-        time_t now = get_time();
-        std::string time_str = get_time_str();
-
-        boost::thread::id this_id = boost::this_thread::get_id();
-
-        if (last_time_map.find(this_id) == last_time_map.end())
-        {
-            last_time_map[this_id] = 0;
-        }
-
-        if (difftime(now, last_time_map[this_id]) > 60)
-        {
-            timedir = rootdir + time_str + "/";
-            int status = mkdir(timedir.c_str(), 0777);
-        }
-        last_time_map[this_id] = now;
-
-        if (num_writes_map.find(this_id) == num_writes_map.end())
-        {
-            num_writes_map[this_id] = 0;
-        }
-        else
-        {
-            num_writes_map[this_id]++;
-        }
-
-        std::stringstream ss;
-        ss << timedir << time_str << "_" << this_id << "_" << num_writes_map[this_id] << ".csv";
-        gps_filename = ss.str();
-
         sensor_msgs::PointCloud pt_cloud;
         sensor_msgs::convertPointCloud2ToPointCloud(*livox_msg, pt_cloud);
         sensor_msgs::ChannelFloat32 channel = pt_cloud.channels[0];
@@ -137,11 +48,9 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
                 geometry_msgs::Point32 point = pt_cloud.points[i];
                 // ROS_INFO("Point cloud %d: x=%f, y=%f, z=%f, intensity = %f", i, point.x, point.y, point.z, channel.values[i]);
 
-                // Save to csv
+                // Save to mongodb
                 if (point.x > 1e-6 || fabs(point.y) > 1e-6 || fabs(point.z) > 1e-6)
                 {
-                    // 3. GPS rod shift
-
                     geometry_msgs::Pose p;
                     p.position.x = point.x;
                     p.position.y = point.y;
@@ -152,15 +61,17 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
                     p.orientation.z = imu_msg->orientation.z;
                     p.orientation.w = imu_msg->orientation.w;
 
-                    messageStore->insertNamed("Livox", p);
+                    mongo::BSONObjBuilder mbuilder;
+                    mbuilder << "lat" << gps_msg->latitude << "lon" << gps_msg->longitude << "alt" << gps_msg->altitude;
+                    mongo::BSONObj meta = mbuilder.obj();
+
+                    messageStore->insert(p, meta, false);
                 }
 
                 is++;
                 isum += ijump;
             }
         }
-
-        // set_led();
     }
 }
 
@@ -181,24 +92,6 @@ void livox_callback(const sensor_msgs::PointCloud2::ConstPtr &msg)
 
 int main(int argc, char **argv)
 {
-    // if (use_pi)
-    // {
-    //     if (gpioInitialise() < 0)
-    //     {
-    //         fprintf(stderr, "pigpio initialisation failed\n");
-    //         return 1;
-    //     }
-    //     /* Set GPIO modes */
-    //     gpioSetMode(24, PI_OUTPUT);
-
-    //     rootdir = "/home/ubuntu/livox_data/";
-    // }
-    // else
-    // {
-    //     rootdir = "/home/jiangchuan/livox_data/";
-    // }
-    // int status = mkdir(rootdir.c_str(), 0777);
-
     ros::init(argc, argv, "livox_razor");
     ros::NodeHandle nh;
     messageStore = new mongodb_store::MessageStoreProxy(nh);
@@ -207,33 +100,22 @@ int main(int argc, char **argv)
     ros::Subscriber livox_sub = nh.subscribe<sensor_msgs::PointCloud2>("livox/lidar", 1, livox_callback);
     ros::Rate rate((double)ROS_RATE); // The setpoint publishing rate MUST be faster than 2Hz
 
-    // ///////////////////////////////////////////////////////////////
-    // // mongodb_store::MessageStoreProxy messageStore(nh);
-
-    // messageStore = new mongodb_store::MessageStoreProxy(nh);
-
-    // geometry_msgs::Pose p;
-    // std::string name("my pose");
-
-    // //Insert something with a name, storing id too
-    // std::string id(messageStore->insertNamed(name, p));
-
-    // // insert(message, meta={}, wait=True)
-
-    // std::cout << "Pose \"" << name << "\" inserted with id " << id << std::endl;
-    // p.position.z = 666;
-    // messageStore->updateID(id, p);
-    // ///////////////////////////////////////////////////////////////
-
     ros::AsyncSpinner aSpinner(0); // Set 0: use a thread for each CPU core
     aSpinner.start();
     ros::waitForShutdown();
 
-    // /* Stop DMA, release resources */
-    // gpioTerminate();
-
     return 0;
 }
+
+
+// { "_id" : ObjectId("5efa46271d41c86e877adbc7"), "position" : { "y" : 0.2720000147819519, "x" : 1.565000057220459, "z" : -0.43700000643730164 }, "orientation" : { "y" : -0.06278365356834364, "x" : 0.020597344504871315, "z" : -0.8897095705294458, "w" : 0.4517198715490241 }, "_meta" : { "name" : "Joe", "inserted_at" : ISODate("2020-06-29T19:51:03.077Z"), "timestamp" : NumberLong("1593460263077534914"), "age" : 33, "stored_type" : "geometry_msgs/Pose", "published_at" : ISODate("2020-06-29T19:51:03.077Z"), "inserted_by" : "/livox_razor_node", "stored_class" : "geometry_msgs.msg._Pose.Pose" } }
+// { "_id" : ObjectId("5efa46271d41c86e877adbc8"), "position" : { "y" : 0.2750000059604645, "x" : 1.5829999446868896, "z" : -0.4390000104904175 }, "orientation" : { "y" : -0.062471927920228085, "x" : 0.021018633606793687, "z" : -0.8897744562067628, "w" : 0.4516158681282055 }, "_meta" : { "name" : "Joe", "inserted_at" : ISODate("2020-06-29T19:51:03.190Z"), "timestamp" : NumberLong("1593460263190537929"), "age" : 33, "stored_type" : "geometry_msgs/Pose", "published_at" : ISODate("2020-06-29T19:51:03.190Z"), "inserted_by" : "/livox_razor_node", "stored_class" : "geometry_msgs.msg._Pose.Pose" } }
+
+// { "_id" : ObjectId("5efa3a4b1d41c80509b5eda1"), "position" : { "y" : 0.24799999594688416, "x" : 1.8619999885559082, "z" : 0.2280000001192093 }, "orientation" : { "y" : -0.0638838332414191, "x" : 0.02176226838737317, "z" : -0.8883246526398942, "w" : 0.4542296457049339 }, "_meta" : { "inserted_at" : ISODate("2020-06-29T19:00:27.822Z"), "timestamp" : NumberLong("1593457227822076082"), "stored_type" : "geometry_msgs/Pose", "published_at" : ISODate("2020-06-29T19:00:27.822Z"), "inserted_by" : "/livox_razor_node", "stored_class" : "geometry_msgs.msg._Pose.Pose" } }
+// { "_id" : ObjectId("5efa3a4b1d41c80509b5eda2"), "position" : { "y" : 0.25200000405311584, "x" : 1.8609999418258667, "z" : 0.2329999953508377 }, "orientation" : { "y" : -0.06364907938063434, "x" : 0.021459671925886697, "z" : -0.8882608147383813, "w" : 0.45440180696728977 }, "_meta" : { "inserted_at" : ISODate("2020-06-29T19:00:27.828Z"), "timestamp" : NumberLong("1593457227828783035"), "stored_type" : "geometry_msgs/Pose", "published_at" : ISODate("2020-06-29T19:00:27.828Z"), "inserted_by" : "/livox_razor_node", "stored_class" : "geometry_msgs.msg._Pose.Pose" } }
+
+// { "_id" : ObjectId("5efa1a4e1d41c80ea859cf86"), "position" : { "y" : 0.43299999833106995, "x" : 1.5750000476837158, "z" : -0.14100000262260437 }, "orientation" : { "y" : -0.0627335013509859, "x" : 0.020707887978900934, "z" : -0.8894762840765605, "w" : 0.45218097179011496 }, "_meta" : { "name" : "Livox", "inserted_at" : ISODate("2020-06-29T16:43:58.234Z"), "timestamp" : NumberLong("1593449038234296083"), "stored_type" : "geometry_msgs/Pose", "published_at" : ISODate("2020-06-29T16:43:58.234Z"), "inserted_by" : "/livox_razor_node", "stored_class" : "geometry_msgs.msg._Pose.Pose" } }
+// { "_id" : ObjectId("5efa1a4e1d41c80ea859cf87"), "position" : { "y" : 0.4399999976158142, "x" : 1.5839999914169312, "z" : -0.1420000046491623 }, "orientation" : { "y" : -0.0627335013509859, "x" : 0.020707887978900934, "z" : -0.8894762840765605, "w" : 0.45218097179011496 }, "_meta" : { "name" : "Livox", "inserted_at" : ISODate("2020-06-29T16:43:58.240Z"), "timestamp" : NumberLong("1593449038240856885"), "stored_type" : "geometry_msgs/Pose", "published_at" : ISODate("2020-06-29T16:43:58.240Z"), "inserted_by" : "/livox_razor_node", "stored_class" : "geometry_msgs.msg._Pose.Pose" } }
 
 // { "_id" : ObjectId("5ef9149e1d41c811f6b647ac"), "position" : { "y" : 0, "x" : 0, "z" : 111 }, "orientation" : { "y" : 0, "x" : 0, "z" : 0, "w" : 0 }, "_meta" : { "name" : "my pose", "inserted_at" : ISODate("2020-06-28T22:07:26.381Z"), "timestamp" : NumberLong("1593382046381707906"), "stored_type" : "geometry_msgs/Pose", "published_at" : ISODate("2020-06-28T22:07:26.381Z"), "inserted_by" : "/livox_razor_node", "stored_class" : "geometry_msgs.msg._Pose.Pose" } }
 // { "_id" : ObjectId("5ef9149e1d41c811f6b647ad"), "position" : { "y" : 0, "x" : 0, "z" : 222 }, "orientation" : { "y" : 0, "x" : 0, "z" : 0, "w" : 0 }, "_meta" : { "name" : "my pose", "inserted_at" : ISODate("2020-06-28T22:07:26.389Z"), "timestamp" : NumberLong("1593382046389272928"), "stored_type" : "geometry_msgs/Pose", "published_at" : ISODate("2020-06-28T22:07:26.389Z"), "inserted_by" : "/livox_razor_node", "stored_class" : "geometry_msgs.msg._Pose.Pose" } }
