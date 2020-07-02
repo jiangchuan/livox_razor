@@ -20,8 +20,8 @@
 #include "mongodb_store/message_store.h"
 #include "geometry_msgs/Pose.h"
 
-#define ROS_RATE 20
-#define SAVE_SIZE 5000
+#define ROS_RATE 2
+#define SAVE_SIZE 3000
 
 sensor_msgs::Imu::ConstPtr imu_msg;
 sensor_msgs::NavSatFix::ConstPtr gps_msg;
