@@ -20,8 +20,8 @@
 #include "mongodb_store/message_store.h"
 #include "geometry_msgs/Pose.h"
 
-#define ROS_RATE 2
-#define SAVE_SIZE 3000
+#define ROS_RATE 1
+#define SAVE_SIZE 500
 
 sensor_msgs::Imu::ConstPtr imu_msg;
 sensor_msgs::NavSatFix::ConstPtr gps_msg;
@@ -106,7 +106,6 @@ int main(int argc, char **argv)
 
     return 0;
 }
-
 
 // { "_id" : ObjectId("5efa46271d41c86e877adbc7"), "position" : { "y" : 0.2720000147819519, "x" : 1.565000057220459, "z" : -0.43700000643730164 }, "orientation" : { "y" : -0.06278365356834364, "x" : 0.020597344504871315, "z" : -0.8897095705294458, "w" : 0.4517198715490241 }, "_meta" : { "name" : "Joe", "inserted_at" : ISODate("2020-06-29T19:51:03.077Z"), "timestamp" : NumberLong("1593460263077534914"), "age" : 33, "stored_type" : "geometry_msgs/Pose", "published_at" : ISODate("2020-06-29T19:51:03.077Z"), "inserted_by" : "/livox_razor_node", "stored_class" : "geometry_msgs.msg._Pose.Pose" } }
 // { "_id" : ObjectId("5efa46271d41c86e877adbc8"), "position" : { "y" : 0.2750000059604645, "x" : 1.5829999446868896, "z" : -0.4390000104904175 }, "orientation" : { "y" : -0.062471927920228085, "x" : 0.021018633606793687, "z" : -0.8897744562067628, "w" : 0.4516158681282055 }, "_meta" : { "name" : "Joe", "inserted_at" : ISODate("2020-06-29T19:51:03.190Z"), "timestamp" : NumberLong("1593460263190537929"), "age" : 33, "stored_type" : "geometry_msgs/Pose", "published_at" : ISODate("2020-06-29T19:51:03.190Z"), "inserted_by" : "/livox_razor_node", "stored_class" : "geometry_msgs.msg._Pose.Pose" } }
