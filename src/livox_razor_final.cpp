@@ -22,11 +22,13 @@
 #define ROS_RATE 1
 #define SAVE_SIZE 500
 
+sensor_msgs::Imu::ConstPtr imu_msg;
+sensor_msgs::NavSatFix::ConstPtr gps_msg;
 mongodb_store::MessageStoreProxy *messageStore;
 
 void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
 {
-    if (livox_msg)
+    if (imu_msg && gps_msg && livox_msg)
     {
         sensor_msgs::PointCloud pt_cloud;
         sensor_msgs::convertPointCloud2ToPointCloud(*livox_msg, pt_cloud);
@@ -53,16 +55,16 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
                     p.position.y = point.y;
                     p.position.z = point.z;
 
-                    p.orientation.x = 0.0;
-                    p.orientation.y = 0.0;
-                    p.orientation.z = 0.0;
-                    p.orientation.w = 0.0;
+                    p.orientation.x = imu_msg->orientation.x;
+                    p.orientation.y = imu_msg->orientation.y;
+                    p.orientation.z = imu_msg->orientation.z;
+                    p.orientation.w = imu_msg->orientation.w;
 
                     mongo::BSONObjBuilder mbuilder;
-                    mbuilder << "lat" << 0.0 << "lon" << 0.0 << "alt" << 0.0;
+                    mbuilder << "lat" << gps_msg->latitude << "lon" << gps_msg->longitude << "alt" << gps_msg->altitude;
                     mongo::BSONObj meta = mbuilder.obj();
 
-                    messageStore->insert(p, meta, true);
+                    messageStore->insert(p, meta, false);
                 }
 
                 is++;
@@ -70,6 +72,16 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
             }
         }
     }
+}
+
+void imu_callback(const sensor_msgs::Imu::ConstPtr &msg)
+{
+    imu_msg = msg;
+}
+
+void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg)
+{
+    gps_msg = msg;
 }
 
 void livox_callback(const sensor_msgs::PointCloud2::ConstPtr &msg)
@@ -82,6 +94,8 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "livox_razor");
     ros::NodeHandle nh;
     messageStore = new mongodb_store::MessageStoreProxy(nh);
+    ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("imu", 1, imu_callback);         // Razor IMU
+    ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>("qxgps", 1, gps_callback); // QX GPS
     ros::Subscriber livox_sub = nh.subscribe<sensor_msgs::PointCloud2>("livox/lidar", 1, livox_callback);
     ros::Rate rate((double)ROS_RATE); // The setpoint publishing rate MUST be faster than 2Hz
 
