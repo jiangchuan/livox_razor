@@ -20,6 +20,9 @@
 #define ROS_RATE 20
 #define SAVE_SIZE 5000
 
+sensor_msgs::Imu::ConstPtr imu_msg;
+sensor_msgs::NavSatFix::ConstPtr gps_msg;
+
 double localx = 0.0, localy = 0.0, localz = 0.0;
 int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
 
@@ -59,7 +62,7 @@ std::string get_time_str()
 
 void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
 {
-    if (livox_msg)
+    if (imu_msg && gps_msg && livox_msg)
     {
         time_t now = get_time();
         std::string time_str = get_time_str();
@@ -112,14 +115,14 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
                 if (point.x > 1e-6 || fabs(point.y) > 1e-6 || fabs(point.z) > 1e-6)
                 {
                     // 3. GPS rod shift
-                    stream << std::setprecision(10) << 0.0 << ",";
-                    stream << std::setprecision(11) << 0.0 << ",";
-                    stream << std::setprecision(7) << 0.0 << ",";
+                    stream << std::setprecision(10) << gps_msg->latitude << ",";
+                    stream << std::setprecision(11) << gps_msg->longitude << ",";
+                    stream << std::setprecision(7) << gps_msg->altitude << ",";
 
-                    stream << std::setprecision(4) << 0.0 << ",";
-                    stream << std::setprecision(4) << 0.0 << ",";
-                    stream << std::setprecision(4) << 0.0 << ",";
-                    stream << std::setprecision(4) << 0.0 << ",";
+                    stream << std::setprecision(4) << imu_msg->orientation.x << ",";
+                    stream << std::setprecision(4) << imu_msg->orientation.y << ",";
+                    stream << std::setprecision(4) << imu_msg->orientation.z << ",";
+                    stream << std::setprecision(4) << imu_msg->orientation.w << ",";
 
                     stream << std::setprecision(4) << point.x << ",";
                     stream << std::setprecision(4) << point.y << ",";
@@ -144,6 +147,16 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
     }
 }
 
+void imu_callback(const sensor_msgs::Imu::ConstPtr &msg)
+{
+    imu_msg = msg;
+}
+
+void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg)
+{
+    gps_msg = msg;
+}
+
 void livox_callback(const sensor_msgs::PointCloud2::ConstPtr &msg)
 {
     saveRawData(msg);
@@ -163,6 +176,8 @@ int main(int argc, char **argv)
 
     ros::init(argc, argv, "livox_razor");
     ros::NodeHandle nh;
+    ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("imu", 1, imu_callback);         // Razor IMU
+    ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>("qxgps", 1, gps_callback); // QX GPS
     ros::Subscriber livox_sub = nh.subscribe<sensor_msgs::PointCloud2>("livox/lidar", 1, livox_callback);
     ros::Rate rate((double)ROS_RATE); // The setpoint publishing rate MUST be faster than 2Hz
 
