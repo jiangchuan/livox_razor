@@ -19,7 +19,7 @@
 #include <pigpio.h>
 
 #define ROS_RATE 20
-#define SAVE_SIZE 5000
+#define SAVE_SIZE 500
 #define LED_JUMP 10
 
 sensor_msgs::Imu::ConstPtr imu_msg;
@@ -87,8 +87,8 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
         {
             timedir = rootdir + time_str + "/";
             int status = mkdir(timedir.c_str(), 0777);
+            last_time_map[this_id] = now;
         }
-        last_time_map[this_id] = now;
 
         if (num_writes_map.find(this_id) == num_writes_map.end())
         {
@@ -162,6 +162,10 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr &msg)
 void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg)
 {
     gps_msg = msg;
+    if (second % 2 == 1)
+    {
+        gpioWrite(24, 0); /* off */
+    }
 }
 
 void livox_callback(const sensor_msgs::PointCloud2::ConstPtr &msg)
