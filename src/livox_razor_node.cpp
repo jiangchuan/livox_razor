@@ -56,14 +56,14 @@ std::string digit2str(int num)
 
 std::string get_time_str()
 {
-    return std::to_string(year) + "-" + digit2str(month) + "-" + digit2str(day) + "_" + digit2str(hour) + "-" + digit2str(minute) + "-" + digit2str(second);
+    return std::to_string(year) + "-" + digit2str(month) + "-" + digit2str(day) + "_" + digit2str(hour) + "-" + digit2str(minute);
 }
 
 void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
 {
-    time_t now = get_time();
     if (imu_msg && gps_msg && livox_msg)
     {
+        time_t now = get_time();
         std::string time_str = get_time_str();
 
         boost::thread::id this_id = boost::this_thread::get_id();
@@ -88,7 +88,7 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
         }
 
         std::stringstream ss;
-        ss << timedir << time_str << "_" << this_id << "_" << num_writes_map[this_id] << ".csv";
+        ss << timedir << time_str << "-" << digit2str(second) << "_" << this_id << "_" << num_writes_map[this_id] << ".csv";
         gps_filename = ss.str();
 
         sensor_msgs::PointCloud pt_cloud;
@@ -143,10 +143,6 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
             gpioWrite(24, 1); /* on */
         }
     }
-    if (second % 2 == 0)
-    {
-        gpioWrite(24, 0); /* off */
-    }
 }
 
 void imu_callback(const sensor_msgs::Imu::ConstPtr &msg)
@@ -157,6 +153,14 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr &msg)
 void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg)
 {
     gps_msg = msg;
+
+    time_t now = time(0);
+    tm *ltm = localtime(&now);
+    second = ltm->tm_sec;
+    if (second % 2 == 0)
+    {
+        gpioWrite(24, 0); /* off */
+    }
 }
 
 void livox_callback(const sensor_msgs::PointCloud2::ConstPtr &msg)
