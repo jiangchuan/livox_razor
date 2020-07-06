@@ -1,5 +1,4 @@
 <launch>
-    <include file="$(find mongodb_store)/launch/mongodb_store.launch" />
     <include file="$(find razor_imu_9dof)/launch/razor-pub.launch" />
     <include file="$(find livox_qx)/launch/livox_qx.launch" />
     <include file="$(find livox_ros_driver)/launch/livox_lidar.launch" />

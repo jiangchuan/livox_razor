@@ -11,7 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
-  mongodb_store
+  #mongodb_store
   #mavros
 )
 

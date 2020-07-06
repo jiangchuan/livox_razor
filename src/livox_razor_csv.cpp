@@ -25,15 +25,11 @@
 sensor_msgs::Imu::ConstPtr imu_msg;
 sensor_msgs::NavSatFix::ConstPtr gps_msg;
 
-double localx = 0.0, localy = 0.0, localz = 0.0;
 int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
-
 std::string rootdir;
 std::string timedir;
 std::string gps_filename;
 int led_value = 0;
-
-bool use_pi = true;
 
 std::map<boost::thread::id, int> num_writes_map;
 std::map<boost::thread::id, time_t> last_time_map;
@@ -83,12 +79,10 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
         std::string time_str = get_time_str();
 
         boost::thread::id this_id = boost::this_thread::get_id();
-
         if (last_time_map.find(this_id) == last_time_map.end())
         {
             last_time_map[this_id] = 0;
         }
-
         if (difftime(now, last_time_map[this_id]) > 60)
         {
             timedir = rootdir + time_str + "/";
@@ -112,7 +106,6 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
         sensor_msgs::PointCloud pt_cloud;
         sensor_msgs::convertPointCloud2ToPointCloud(*livox_msg, pt_cloud);
         sensor_msgs::ChannelFloat32 channel = pt_cloud.channels[0];
-
         std::stringstream stream;
         int pts_size = pt_cloud.points.size();
 
@@ -144,7 +137,6 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
                     stream << std::setprecision(4) << point.z << ",";
                     stream << channel.values[i] << "\n"; // Reflectivity
                 }
-
                 is++;
                 isum += ijump;
             }
@@ -158,7 +150,6 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg)
             file << stream.rdbuf();
             file.close();
         }
-
         set_led();
     }
 }
@@ -180,22 +171,14 @@ void livox_callback(const sensor_msgs::PointCloud2::ConstPtr &msg)
 
 int main(int argc, char **argv)
 {
-    if (use_pi)
+    if (gpioInitialise() < 0)
     {
-        if (gpioInitialise() < 0)
-        {
-            fprintf(stderr, "pigpio initialisation failed\n");
-            return 1;
-        }
-        /* Set GPIO modes */
-        gpioSetMode(24, PI_OUTPUT);
+        fprintf(stderr, "pigpio initialisation failed\n");
+        return 1;
+    }
+    gpioSetMode(24, PI_OUTPUT); //Set GPIO modes
 
-        rootdir = "/home/ubuntu/livox_data/";
-    }
-    else
-    {
-        rootdir = "/home/jiangchuan/livox_data/";
-    }
+    rootdir = "/home/ubuntu/livox_data/";
     int status = mkdir(rootdir.c_str(), 0777);
 
     ros::init(argc, argv, "livox_razor");
@@ -209,8 +192,7 @@ int main(int argc, char **argv)
     aSpinner.start();
     ros::waitForShutdown();
 
-    /* Stop DMA, release resources */
-    gpioTerminate();
+    gpioTerminate(); // Stop DMA, release resources
 
     return 0;
 }
