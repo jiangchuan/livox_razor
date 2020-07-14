@@ -1,5 +1,4 @@
 #include <geometry_msgs/Point32.h>
-#include <pigpio.h>
 #include <ros/ros.h>
 #include <sensor_msgs/ChannelFloat32.h>
 #include <sensor_msgs/Imu.h>
@@ -19,7 +18,6 @@
 
 #define ROS_RATE 20
 #define SAVE_SIZE 500
-#define LED_JUMP 10
 
 sensor_msgs::Imu::ConstPtr imu_msg;
 sensor_msgs::NavSatFix::ConstPtr gps_msg;
@@ -28,7 +26,6 @@ int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
 std::string rootdir;
 std::string timedir;
 std::string gps_filename;
-int led_value = 0;
 
 std::map<boost::thread::id, int> num_writes_map;
 std::map<boost::thread::id, time_t> last_time_map;
@@ -124,9 +121,6 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg) {
             file << stream.rdbuf();
             file.close();
         }
-        if (second % 2 == 1) {
-            gpioWrite(24, 1); /* on */
-        }
     }
 }
 
@@ -136,13 +130,6 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr &msg) {
 
 void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     gps_msg = msg;
-
-    time_t now = time(0);
-    tm *ltm = localtime(&now);
-    second = ltm->tm_sec;
-    if (second % 2 == 0) {
-        gpioWrite(24, 0); /* off */
-    }
 }
 
 void livox_callback(const sensor_msgs::PointCloud2::ConstPtr &msg) {
@@ -150,12 +137,6 @@ void livox_callback(const sensor_msgs::PointCloud2::ConstPtr &msg) {
 }
 
 int main(int argc, char **argv) {
-    if (gpioInitialise() < 0) {
-        fprintf(stderr, "pigpio initialisation failed\n");
-        return 1;
-    }
-    gpioSetMode(24, PI_OUTPUT);  //Set GPIO modes
-
     rootdir = "/home/ubuntu/livox_data/";
     int status = mkdir(rootdir.c_str(), 0777);
 
@@ -169,8 +150,6 @@ int main(int argc, char **argv) {
     ros::AsyncSpinner aSpinner(0);  // Set 0: use a thread for each CPU core
     aSpinner.start();
     ros::waitForShutdown();
-
-    gpioTerminate();  // Stop DMA, release resources
 
     return 0;
 }
