@@ -97,7 +97,7 @@ void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg) {
                     stream << std::setprecision(10) << gps_msg->latitude << ",";
                     stream << std::setprecision(11) << gps_msg->longitude << ",";
                     stream << std::setprecision(7) << gps_msg->altitude << ",";
-                    stream << gps_msg->status.status << ",";
+                    stream << int(gps_msg->status.status) << ",";
 
                     stream << std::setprecision(4) << imu_msg->orientation.x << ",";
                     stream << std::setprecision(4) << imu_msg->orientation.y << ",";
