@@ -147,7 +147,8 @@ int main(int argc, char **argv) {
 
     ros::init(argc, argv, "livox_razor");
     ros::NodeHandle nh;
-    ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("imu", 1, imu_callback);          // Razor IMU
+    // ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("imu", 1, imu_callback);          // Razor IMU
+    ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("imu/data", 1, imu_callback);     // Adi IMU
     ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>("qxgps", 1, gps_callback);  // QX GPS
     ros::Subscriber livox_sub = nh.subscribe<sensor_msgs::PointCloud2>("livox/lidar", 1, livox_callback);
     ros::Rate rate((double)ROS_RATE);  // The setpoint publishing rate MUST be faster than 2Hz
