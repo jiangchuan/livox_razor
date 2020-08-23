@@ -137,37 +137,40 @@ void save_lidar_data(sensor_msgs::PointCloud2ConstPtr lidar_msg) {
 }
 
 void imu_callback(const sensor_msgs::Imu::ConstPtr &imu_msg) {
-    time_t now = get_time();
-    std::string time_str = get_time_str();
-    boost::thread::id this_id = boost::this_thread::get_id();
-    if (imu_last_time_map.find(this_id) == imu_last_time_map.end()) {
-        imu_last_time_map[this_id] = 0;
-    }
-    if (difftime(now, imu_last_time_map[this_id]) > 60) {
-        imu_timedir = imu_dir + time_str + "/";
-        int status = mkdir(imu_timedir.c_str(), 0777);
-        imu_last_time_map[this_id] = now;
-    }
-    if (imu_num_writes_map.find(this_id) == imu_num_writes_map.end()) {
-        imu_num_writes_map[this_id] = 0;
-    } else {
-        imu_num_writes_map[this_id]++;
-    }
+    double imu_t = imu_msg->header.stamp.sec * 1.0 + imu_msg->header.stamp.nsec / 1000000000.0;
+    ROS_INFO("imu_t = %f, sec = %f, nsec = %f", imu_t, imu_msg->header.stamp.sec, imu_msg->header.stamp.nsec);
 
-    std::stringstream ss;
-    ss << imu_timedir << time_str << "-" << digit2str(second) << "_" << this_id << "_" << imu_num_writes_map[this_id] << ".csv";
-    std::string imu_filename = ss.str();
+    // time_t now = get_time();
+    // std::string time_str = get_time_str();
+    // boost::thread::id this_id = boost::this_thread::get_id();
+    // if (imu_last_time_map.find(this_id) == imu_last_time_map.end()) {
+    //     imu_last_time_map[this_id] = 0;
+    // }
+    // if (difftime(now, imu_last_time_map[this_id]) > 60) {
+    //     imu_timedir = imu_dir + time_str + "/";
+    //     int status = mkdir(imu_timedir.c_str(), 0777);
+    //     imu_last_time_map[this_id] = now;
+    // }
+    // if (imu_num_writes_map.find(this_id) == imu_num_writes_map.end()) {
+    //     imu_num_writes_map[this_id] = 0;
+    // } else {
+    //     imu_num_writes_map[this_id]++;
+    // }
 
-    std::stringstream stream;
-    stream << std::setprecision(4) << imu_msg->orientation.x << ",";
-    stream << std::setprecision(4) << imu_msg->orientation.y << ",";
-    stream << std::setprecision(4) << imu_msg->orientation.z << ",";
-    stream << std::setprecision(4) << imu_msg->orientation.w << ",";
+    // std::stringstream ss;
+    // ss << imu_timedir << time_str << "-" << digit2str(second) << "_" << this_id << "_" << imu_num_writes_map[this_id] << ".csv";
+    // std::string imu_filename = ss.str();
 
-    std::fstream file;
-    file.open(imu_filename, std::ios::out | std::ios::app);
-    file << stream.rdbuf();
-    file.close();
+    // std::stringstream stream;
+    // stream << std::setprecision(4) << imu_msg->orientation.x << ",";
+    // stream << std::setprecision(4) << imu_msg->orientation.y << ",";
+    // stream << std::setprecision(4) << imu_msg->orientation.z << ",";
+    // stream << std::setprecision(4) << imu_msg->orientation.w << ",";
+
+    // std::fstream file;
+    // file.open(imu_filename, std::ios::out | std::ios::app);
+    // file << stream.rdbuf();
+    // file.close();
 }
 
 void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
