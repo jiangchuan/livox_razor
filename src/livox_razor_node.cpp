@@ -148,7 +148,9 @@ void livox_callback(const sensor_msgs::PointCloud2ConstPtr &msg) {
 }
 
 int main(int argc, char **argv) {
-    lidar_dir = "/home/ubuntu/livox_data/lidar/";
+    std::string root_dir = "/home/ubuntu/livox_data/";
+    lidar_dir = root_dir + "lidar/";
+    int status = mkdir(root_dir.c_str(), 0777);
     int status = mkdir(lidar_dir.c_str(), 0777);
 
     ros::init(argc, argv, "livox_razor");
