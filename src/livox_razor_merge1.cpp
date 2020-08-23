@@ -23,22 +23,12 @@ sensor_msgs::Imu::ConstPtr imu_msg;
 sensor_msgs::NavSatFix::ConstPtr gps_msg;
 
 int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
-std::string lidar_dir;
+std::string rootdir;
 std::string timedir;
-std::string lidar_filename;
+std::string gps_filename;
 
 std::map<boost::thread::id, int> num_writes_map;
 std::map<boost::thread::id, time_t> last_time_map;
-
-inline double to_time(sensor_msgs::PointCloud2ConstPtr msg) {
-    return (msg->header.stamp.sec) * 1.0 + (msg->header.stamp.nsec / 1000000000.0);
-}
-inline double to_time(sensor_msgs::Imu msg) {
-    return (msg.header.stamp.sec) * 1.0 + (msg.header.stamp.nsec / 1000000000.0);
-}
-inline double to_time(sensor_msgs::NavSatFix msg) {
-    return (msg.header.stamp.sec) * 1.0 + (msg.header.stamp.nsec / 1000000000.0);
-}
 
 time_t get_time() {
     time_t now = time(0);
@@ -62,19 +52,26 @@ std::string get_time_str() {
     return std::to_string(year) + "-" + digit2str(month) + "-" + digit2str(day) + "_" + digit2str(hour) + "-" + digit2str(minute);
 }
 
-void saveRawData(sensor_msgs::PointCloud2ConstPtr lidar_msg) {
-    if (lidar_msg) {
+void saveRawData(sensor_msgs::PointCloud2::ConstPtr livox_msg) {
+    if (imu_msg && gps_msg && livox_msg) {
+        int gps_status = int(gps_msg->status.status);
+        if (gps_status < 0) {
+            return;
+        }
+
         time_t now = get_time();
         std::string time_str = get_time_str();
+
         boost::thread::id this_id = boost::this_thread::get_id();
         if (last_time_map.find(this_id) == last_time_map.end()) {
             last_time_map[this_id] = 0;
         }
         if (difftime(now, last_time_map[this_id]) > 60) {
-            timedir = lidar_dir + time_str + "/";
+            timedir = rootdir + time_str + "/";
             int status = mkdir(timedir.c_str(), 0777);
             last_time_map[this_id] = now;
         }
+
         if (num_writes_map.find(this_id) == num_writes_map.end()) {
             num_writes_map[this_id] = 0;
         } else {
@@ -83,10 +80,10 @@ void saveRawData(sensor_msgs::PointCloud2ConstPtr lidar_msg) {
 
         std::stringstream ss;
         ss << timedir << time_str << "-" << digit2str(second) << "_" << this_id << "_" << num_writes_map[this_id] << ".csv";
-        lidar_filename = ss.str();
+        gps_filename = ss.str();
 
         sensor_msgs::PointCloud pt_cloud;
-        sensor_msgs::convertPointCloud2ToPointCloud(*lidar_msg, pt_cloud);
+        sensor_msgs::convertPointCloud2ToPointCloud(*livox_msg, pt_cloud);
         sensor_msgs::ChannelFloat32 channel = pt_cloud.channels[0];
         std::stringstream stream;
         int pts_size = pt_cloud.points.size();
@@ -94,8 +91,6 @@ void saveRawData(sensor_msgs::PointCloud2ConstPtr lidar_msg) {
         float ijump = (float)pts_size / (float)SAVE_SIZE;
         float isum = 0.0f;
         int is = 1;
-
-        double lidar_t = to_time(lidar_msg);
         for (int i = 0; i < pts_size; i++) {
             if (isum <= (float)i) {
                 geometry_msgs::Point32 point = pt_cloud.points[i];
@@ -104,17 +99,16 @@ void saveRawData(sensor_msgs::PointCloud2ConstPtr lidar_msg) {
                 // Save to csv
                 if (point.x > 1e-6 || fabs(point.y) > 1e-6 || fabs(point.z) > 1e-6) {
                     // 3. GPS rod shift
-                    // stream << std::setprecision(10) << gps_msg->latitude << ",";
-                    // stream << std::setprecision(11) << gps_msg->longitude << ",";
-                    // stream << std::setprecision(7) << gps_msg->altitude << ",";
-                    // stream << gps_status << ",";
+                    stream << std::setprecision(10) << gps_msg->latitude << ",";
+                    stream << std::setprecision(11) << gps_msg->longitude << ",";
+                    stream << std::setprecision(7) << gps_msg->altitude << ",";
+                    stream << gps_status << ",";
 
-                    // stream << std::setprecision(4) << imu_msg->orientation.x << ",";
-                    // stream << std::setprecision(4) << imu_msg->orientation.y << ",";
-                    // stream << std::setprecision(4) << imu_msg->orientation.z << ",";
-                    // stream << std::setprecision(4) << imu_msg->orientation.w << ",";
+                    stream << std::setprecision(4) << imu_msg->orientation.x << ",";
+                    stream << std::setprecision(4) << imu_msg->orientation.y << ",";
+                    stream << std::setprecision(4) << imu_msg->orientation.z << ",";
+                    stream << std::setprecision(4) << imu_msg->orientation.w << ",";
 
-                    stream << std::setprecision(3) << lidar_t << ",";
                     stream << std::setprecision(4) << point.x << ",";
                     stream << std::setprecision(4) << point.y << ",";
                     stream << std::setprecision(4) << point.z << ",";
@@ -128,7 +122,7 @@ void saveRawData(sensor_msgs::PointCloud2ConstPtr lidar_msg) {
         // ROS_INFO("Point cloud size: %d", pts_size);
         if (pts_size > 0) {
             std::fstream file;
-            file.open(lidar_filename, std::ios::out | std::ios::app);
+            file.open(gps_filename, std::ios::out | std::ios::app);
             file << stream.rdbuf();
             file.close();
         }
@@ -143,13 +137,13 @@ void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     gps_msg = msg;
 }
 
-void livox_callback(const sensor_msgs::PointCloud2ConstPtr &msg) {
+void livox_callback(const sensor_msgs::PointCloud2::ConstPtr &msg) {
     saveRawData(msg);
 }
 
 int main(int argc, char **argv) {
-    lidar_dir = "/home/ubuntu/livox_data/lidar/";
-    int status = mkdir(lidar_dir.c_str(), 0777);
+    rootdir = "/home/ubuntu/livox_data/";
+    int status = mkdir(rootdir.c_str(), 0777);
 
     ros::init(argc, argv, "livox_razor");
     ros::NodeHandle nh;
