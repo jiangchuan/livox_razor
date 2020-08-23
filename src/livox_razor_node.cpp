@@ -96,6 +96,8 @@ void saveRawData(sensor_msgs::PointCloud2ConstPtr lidar_msg) {
         int is = 1;
 
         double lidar_t = to_time(lidar_msg);
+        ROS_INFO("lidar_t = %f, sec = %f, nsec = %f", lidar_t, lidar_msg->header.stamp.sec, lidar_msg->header.stamp.nsec);
+
         for (int i = 0; i < pts_size; i++) {
             if (isum <= (float)i) {
                 geometry_msgs::Point32 point = pt_cloud.points[i];
@@ -151,7 +153,7 @@ int main(int argc, char **argv) {
     std::string root_dir = "/home/ubuntu/livox_data/";
     lidar_dir = root_dir + "lidar/";
     int status = mkdir(root_dir.c_str(), 0777);
-    int status = mkdir(lidar_dir.c_str(), 0777);
+    status = mkdir(lidar_dir.c_str(), 0777);
 
     ros::init(argc, argv, "livox_razor");
     ros::NodeHandle nh;
