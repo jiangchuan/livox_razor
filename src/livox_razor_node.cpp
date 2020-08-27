@@ -9,7 +9,7 @@
 #include <sstream>
 
 #define ROS_RATE 20
-#define SAVE_SIZE 500
+#define SAVE_SIZE 1000
 
 int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
 std::string lidar_dir;
@@ -62,9 +62,9 @@ void livox_callback(const livox_razor::CustomMsg::ConstPtr &lidar_msg) {
     std::string lidar_filename = ss.str();
 
     int pts_size = lidar_msg->points.size();
+    // std::cout << "pts_size = " << pts_size << std::endl;
     float ijump = (float)pts_size / (float)SAVE_SIZE;
     float isum = 0.0f;
-    int is = 1;
 
     double lidar_t0 = lidar_msg->header.stamp.sec * 1.0 + lidar_msg->header.stamp.nsec / 1000000000.0;
     // std::cout << "lidar_t0 = " << lidar_t0 << " sec = " << lidar_msg->header.stamp.sec << " nsec = " << lidar_msg->header.stamp.nsec << std::endl;
@@ -76,13 +76,12 @@ void livox_callback(const livox_razor::CustomMsg::ConstPtr &lidar_msg) {
             // Save to csv
             if (point.x > 1e-6 || fabs(point.y) > 1e-6 || fabs(point.z) > 1e-6) {
                 double lidar_t = lidar_t0 + point.offset_time / 1000000000.0;
-                stream << std::setprecision(18) << lidar_t << ",";
+                stream << std::setprecision(16) << lidar_t << ",";
                 stream << std::setprecision(6) << point.x << ",";
                 stream << std::setprecision(6) << point.y << ",";
                 stream << std::setprecision(6) << point.z << ",";
                 stream << unsigned(point.reflectivity) << "\n";
             }
-            is++;
             isum += ijump;
         }
     }
@@ -105,7 +104,7 @@ int main(int argc, char **argv) {
 
     ros::init(argc, argv, "livox_razor");
     ros::NodeHandle nh;
-    ros::Subscriber livox_sub = nh.subscribe<livox_razor::CustomMsg>("livox/lidar", 5, livox_callback);
+    ros::Subscriber livox_sub = nh.subscribe<livox_razor::CustomMsg>("livox/lidar", 100, livox_callback);
 
     ros::Rate rate((double)ROS_RATE);  // The setpoint publishing rate MUST be faster than 2Hz
     ros::AsyncSpinner aSpinner(0);     // Set 0: use a thread for each CPU core
