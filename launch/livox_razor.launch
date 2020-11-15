@@ -1,8 +1,8 @@
 <launch>
-    <include file="$(find razor_imu_9dof)/launch/razor-pub.launch" />
+    <!-- <include file="$(find razor_imu_9dof)/launch/razor-pub.launch" /> -->
     <include file="$(find adi_driver)/launch/adis16470.launch" />
     <!-- <include file="$(find livox_qx)/launch/livox_qx.launch" /> -->
-    <include file="$(find razor_sub)/launch/razor_sub.launch" />
+    <!-- <include file="$(find razor_sub)/launch/razor_sub.launch" /> -->
     <include file="$(find adi_sub)/launch/adi_sub.launch" />
     <include file="$(find livox_ros_driver)/launch/livox_lidar_msg.launch" />
     <node pkg="livox_razor" type="livox_razor_node" name="livox_razor_node" output="screen" />
